@@ -1,5 +1,5 @@
 # T6 实验目的 / 环境 / 运行截图 / 拓展 / 总结
-- 负责人：nagilix    状态：待开始    依赖：无（如果本机 QEMU 较新，参见全组须知第 1 条）
+- 负责人：nagilix    状态：待开始    依赖：无
 - 可改文件：report/sections/T6-*.md, report/images/T6-*
 
 ## 要求

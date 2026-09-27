@@ -1,5 +1,5 @@
 # T2 练习2：使用 GDB 验证启动流程
-- 负责人：openfar    状态：待开始    依赖：T0（仅新版 QEMU 需要）
+- 负责人：openfar    状态：待开始    依赖：无
 - 可改文件：report/sections/T2-*.md, report/images/T2-*
 
 ## 要求

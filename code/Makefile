@@ -156,21 +156,26 @@ TARGETS: $(TARGETS)
 
 .DEFAULT_GOAL := TARGETS
 
-.PHONY: qemu 
+# 原框架用 -device loader,file=$(UCOREIMG),addr=0x80200000 放置内核。
+# QEMU 4.x 自带的 OpenSBI（fw_jump）会固定跳转到 0x80200000，所以能正常启动；
+# 较新的 QEMU（例如 8.2）自带 fw_dynamic，跳转地址由 QEMU 传入，而 loader 不提供入口，
+# OpenSBI 会显示 Next Address = 0x0，内核不会运行。
+# 改用 -kernel 加载 ELF：由 QEMU 按 ELF 头把内核放到 0x80200000 并传入入口地址，新旧版本都能用。
+.PHONY: qemu
 qemu: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 #	$(V)$(QEMU) -kernel $(UCOREIMG) -nographic
 	$(V)$(QEMU) \
 		-machine virt \
 		-nographic \
 		-bios default \
-		-device loader,file=$(UCOREIMG),addr=0x80200000
+		-kernel $(kernel)
 
 debug: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 	$(V)$(QEMU) \
 		-machine virt \
 		-nographic \
 		-bios default \
-		-device loader,file=$(UCOREIMG),addr=0x80200000\
+		-kernel $(kernel) \
 		-s -S
 
 gdb:
