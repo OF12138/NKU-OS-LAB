@@ -3,3 +3,4 @@ obj/
 .gdb.in
 .qemu.out
 .claude/tools/
+reference/

@@ -13,6 +13,7 @@
 | T4 | 知识点对照：实验与 OS 原理的对应，以及原理中本实验未覆盖的知识点 | lyp | 待开始 | report/sections/T4-*.md |
 | T5 | 整体逻辑主线 + 集成（合并 report.md 和 prompt.md） | openfar | 待开始 | report/sections/T5-*.md, report/report.md, report/prompt.md |
 | T6 | 实验目的、实验环境表、make qemu 运行截图、拓展（现代笔记本启动流程）、实验总结 | nagilix | 待开始 | report/sections/T6-*.md, report/images/T6-* |
+| T7 | 答辩准备：每人都要能回答问题清单中的全部问题 | 全员 | 待开始 | .handoff/tasks/T7-defense.md（各改自己的小节） |
 
 ## 集成状态
 - make qemu ✅（QEMU 8.2.2）   make grade 不适用   report.md 已合并 ⬜   prompt.md 已合并 ⬜
