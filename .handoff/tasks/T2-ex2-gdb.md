@@ -8,6 +8,7 @@
 ## 当前进度 / 下一步
 - 已完成：report/sections/T2-ex2-gdb.md（正文，5 张图穿插在文中）和 T2-ex2-gdb.prompt.md。
 - 图片：T2-0-boot-overview.png（启动流程与内存布局示意图）、T2-1-reset-0x1000、T2-2-mret-to-kernel、T2-3-watch、T2-4-ecall（真实终端截图，QEMU 8.2.2）。
+- 2026-10-05 补充：编译了带符号的 OpenSBI v1.3（WSL ~/Code/opensbi，加 -std=gnu11），按函数梳理初始化流程（报告 3.1），并把 7 次 mret 精确对应到源码（3.2）；第六节补了 ecall 在 OpenSBI 内部的调用链。新增截图 T2-5-opensbi-symbols、T2-6-ecall-chain，图号顺延到 2-7。
 - 写作时参考了 reference/ 中前辈的报告（zaz lab1 在 QEMU 4.1.1 上同样发现 watch 不会触发）。
 
 ## 关键决策与结论
@@ -28,5 +29,7 @@
 - 连接 GDB 时报错 `Remote replied unexpectedly to 'vMustReplyEmpty': timeout`，QEMU 日志显示 `-s: Failed to find an available port`：1234 端口被上一次运行残留的进程占用。结束残留的 qemu 后重新运行即可。
 
 - 用 conhost 截图时，窗口抢到焦点，混进了用户的键盘输入；后来改用 Windows Terminal 窗口 + PrintWindow 截图，并在截图前提醒用户不要打字。
+- 无符号固件只能在 mret 上断点、靠 mtval 反推成因；后来改用自己编译的带符号固件，用 __sbi_expected_trap / semihosting_enabled 断点 + bt 精确定位到 sbi_hart.c:622/632/669/682/697 和 platform.c:279，并发现这类探测不经过 sbi_trap_handler。
+- 编译 OpenSBI v1.3 报错 `'bool' cannot be defined via 'typedef'`：GCC 15 默认 C23，bool 成为关键字；在 CFLAGS 加 -std=gnu11 解决。
 
 ## 留言

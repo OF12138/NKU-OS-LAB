@@ -8,6 +8,7 @@
 
 ## 当前进度 / 下一步
 - 已完成：qemu / debug 两个目标都改为 `-kernel $(kernel)`，直接加载 ELF 格式的 bin/kernel。Makefile 里加了注释说明原因。
+- 新增（2026-10-05）：可选变量 `OPENSBI`，默认 `default`（QEMU 自带固件）。`make debug OPENSBI=<fw_dynamic.elf>` 换上自己编译的带符号固件，`make gdb OPENSBI=<同一路径>` 会额外 add-symbol-file。已在 QEMU 8.2.2 上验证两种方式都能启动内核。
 - 报告材料：report/sections/T0-env-compat.md（供「实验环境 / 测试」部分引用）。提示词在 T0-env-compat.prompt.md。
 
 ## 关键决策与结论

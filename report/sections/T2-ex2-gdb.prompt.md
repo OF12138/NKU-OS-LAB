@@ -43,6 +43,7 @@ void sbi_console_putchar(unsigned char ch) {
 ```
 
 - 运行环境：QEMU 8.2.2，自带 OpenSBI v1.3（fw_dynamic）。固件 ELF 位于 `/usr/share/qemu/opensbi-riscv64-generic-fw_dynamic.elf`，**没有符号表**。
+- OpenSBI v1.3 的源码可从 https://github.com/riscv-software-src/opensbi 获取，用 `make PLATFORM=generic CROSS_COMPILE=riscv64-unknown-elf-` 编译出带调试信息的 `build/platform/generic/firmware/fw_dynamic.elf`。QEMU 可以用 `-bios <路径>` 换上这份固件，GDB 用 `add-symbol-file <路径>` 加载它的符号。
 - 指导书给出的提示：复位地址是 0x1000；“SBI 固件将内核加载到 0x80200000，可以用 `watch *0x80200000` 观察加载瞬间”；用 `b *0x80200000` 在内核入口断下。
 - GDB 可以通过 `$priv` 查看当前特权级，通过 `$mepc`、`$mstatus`、`$mcause`、`$mtval`、`$medeleg`、`$mideleg` 等读取 CSR。
 
@@ -56,6 +57,7 @@ void sbi_console_putchar(unsigned char ch) {
 4. 核实指导书中关于“OpenSBI 加载内核、用 watch 观察”的提示是否成立。
 5. 一张启动流程与物理内存布局的示意图，以及调试截图（复位处、交接给内核处、watch 实验、内核调用 SBI），每张图插在对应的文字中间。
 6. 说明真实硬件上内核由谁加载，与 QEMU 的做法有何不同。
+7. 编译带符号的 OpenSBI，按函数名梳理它从入口到交接内核的完整初始化流程，以及处理内核 ecall 的调用链；为 Makefile 增加可选变量，使 `make debug` / `make gdb` 能切换到这份固件。
 
 [SPECIFICATION]
 
@@ -70,15 +72,18 @@ void sbi_console_putchar(unsigned char ch) {
 ## 阶段二：OpenSBI 初始化与交接
 
 **Pre-Condition**:
-- 已到达 0x80000000，OpenSBI 没有符号，无法按函数名下断点。
+- 已到达 0x80000000。QEMU 自带的 OpenSBI 没有符号，无法按函数名下断点。
 
 **Post-Condition**:
-- 报告说明 OpenSBI 入口处几条指令的作用，并找到“降级到 S 态并跳往内核”的那条指令。
+- 报告说明 OpenSBI 入口处几条指令的作用，按函数列出 OpenSBI 从入口到交接内核的初始化流程，并找到“降到 S 态并跳往内核”的那条指令。
 
   **Case 1**:
-  - 如果 OpenSBI 中有多条可能执行的 `mret`，就要区分哪一次是交接给内核的（mepc = 0x80200000，MPP = S 态）。其余各次 mret 的成因也要尽量结合 mcause、mtval 和附近的代码给出解释。
+  - 使用带符号的 OpenSBI 时：在各关键函数上设断点，用 `bt` 确认调用关系，给出每个函数的作用；还要说明这份固件与 QEMU 自带固件在内存布局上的差异，避免把两者的地址混用。
 
   **Case 2**:
+  - 使用 QEMU 自带的无符号固件时：如果 OpenSBI 中有多条可能执行的 `mret`，就要区分哪一次是交接给内核的（mepc = 0x80200000，MPP = S 态）。其余各次 mret 的成因要结合 mcause、mtval，以及带符号固件中对应的源码行给出解释。
+
+  **Case 3**:
   - 交接时 OpenSBI 设置好的中断和异常委托（medeleg、mideleg），要说明其含义，特别是 S 态 `ecall` 为什么没有被委托。
 
 ## 阶段三：进入内核
@@ -90,6 +95,11 @@ void sbi_console_putchar(unsigned char ch) {
 
 **Post-Condition**:
 - 用 GDB 证明 0x80200000 处的内核代码在 CPU 执行第一条指令之前是否已经存在，以及 watchpoint 是否会被触发；如果与指导书不符，就指出谁、在什么时候把内核放进了内存。
+
+## 延伸：内核如何调用 SBI
+
+**Post-Condition**:
+- 在 `sbi_console_putchar` 中的 `ecall` 处断下，说明 a7、a0 的含义，以及 ecall 前后特权级、mcause、mepc、mtvec 的变化。再用带符号固件给出这次调用在 OpenSBI 内部从陷阱入口到串口驱动的完整调用链。
 
 **Requirements**:
 - 所有地址、寄存器值和指令都必须来自本次实际运行的输出。

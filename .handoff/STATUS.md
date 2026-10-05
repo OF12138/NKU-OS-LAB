@@ -19,7 +19,7 @@
 - make qemu ✅（QEMU 8.2.2）   make grade 不适用   report.md 已合并 ⬜   prompt.md 已合并 ⬜
 
 ## 全组须知
-1. **QEMU 启动方式已修改（T0）**：`make qemu` / `make debug` 改为用 `-kernel bin/kernel` 加载 ELF，在 QEMU 8.2 上已验证，按源码分析 4.1.x 也兼容。先 pull 最新代码，然后照常运行 `make qemu` 即可。如果你的 QEMU 版本上出现问题，请在 T0 的留言区注明版本和现象。
+1. **QEMU 启动方式已修改（T0）**：`make qemu` / `make debug` 改为用 `-kernel bin/kernel` 加载 ELF，在 QEMU 8.2 上已验证，按源码分析 4.1.x 也兼容。先 pull 最新代码，然后照常运行 `make qemu` 即可。如果你的 QEMU 版本上出现问题，请在 T0 的留言区注明版本和现象。另外，`make debug` / `make gdb` 新增了可选参数 `OPENSBI=<fw_dynamic.elf>`，可以换上自己编译的带符号 OpenSBI，方便调试（见 T2 报告 3.1 节）。
 2. **指导书不可全信**：练习 2 的提示说“OpenSBI 把内核加载到 0x80200000，可用 watch 观察加载瞬间”，至少在新版 QEMU 上是错的：GDB 停在 0x1000 时，0x80200000 处已经是 kern_entry 的指令。另外，lab1 页面里的文件树与实际代码不符，示例输出的 OpenSBI 版本也因环境而异。凡是引用指导书的结论，都要先对照代码或实测确认。
 3. 2026 版 lab1 框架代码与 2025 版完全相同，往届资料可以参考，但报告必须自己写。
 4. **Q&A 答复**：lab1 只要求 make qemu 能运行；报告由小组共同完成，放在 git 仓库里；提示词按模板写，只提交迭代优化后的最终版，不要交聊天记录导出。

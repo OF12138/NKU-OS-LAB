@@ -13,6 +13,14 @@ ifndef QEMU
 QEMU := qemu-system-riscv64
 endif
 
+# OpenSBI 固件：默认使用 QEMU 自带的版本（没有符号表）。
+# 调试时可以换成自己编译的带符号固件，make debug 和 make gdb 要传同一个路径，例如：
+#   make debug OPENSBI=~/Code/opensbi/build/platform/generic/firmware/fw_dynamic.elf
+#   make gdb   OPENSBI=~/Code/opensbi/build/platform/generic/firmware/fw_dynamic.elf
+# 这样 GDB 会额外加载 OpenSBI 的符号，可以按函数名在 OpenSBI 中下断点、查看调用栈。
+OPENSBI ?= default
+GDB_OPENSBI := $(if $(filter-out default,$(OPENSBI)),-ex 'set confirm off' -ex 'add-symbol-file $(OPENSBI)' -ex 'set confirm on')
+
 
 # eliminate default suffix rules
 .SUFFIXES: .c .S .h
@@ -167,20 +175,21 @@ qemu: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 	$(V)$(QEMU) \
 		-machine virt \
 		-nographic \
-		-bios default \
+		-bios $(OPENSBI) \
 		-kernel $(kernel)
 
 debug: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 	$(V)$(QEMU) \
 		-machine virt \
 		-nographic \
-		-bios default \
+		-bios $(OPENSBI) \
 		-kernel $(kernel) \
 		-s -S
 
 gdb:
 	riscv64-unknown-elf-gdb \
     -ex 'file bin/kernel' \
+    $(GDB_OPENSBI) \
     -ex 'set arch riscv:rv64' \
     -ex 'target remote localhost:1234'
 

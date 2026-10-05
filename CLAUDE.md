@@ -1,6 +1,7 @@
 @AGENTS.md
 
 > 以上是全组共用的规范（AGENTS.md 是唯一来源，修改规范请改 AGENTS.md）。以下是 openfar 本机 Claude Code 的附加须知，其他成员可以忽略。
+> 本节由 Claude 自行维护：遇到值得记住的本机环境、工具用法和用户偏好时直接更新，用户会定期审阅修改。
 
 
 
@@ -14,6 +15,14 @@
 * GDB 连接失败、报 `vMustReplyEmpty: timeout` 时，通常是 1234 端口被残留的 qemu 占用，先执行 `pkill -f qemu-system-riscv64`。
 * 引用仓库代码做实验或截图时，要用 `git archive HEAD code` 导出干净的副本：用户本地可能有未提交的学习注释，会改变源码行号。
 * **WSL 中不要直接在 `~/` 下新建临时目录。** 需要在 WSL 里编译或调试时，统一用 `.claude/tools/sync-wsl.sh [分支]` 把已提交的 code/ 同步到 `~/Code/NKU-OS-LAB/<分支>/code`。
+
+## 带符号的 OpenSBI
+
+* QEMU 自带的固件没有符号表。WSL 中的 `~/Code/opensbi` 是 OpenSBI **v1.3** 的源码（与 QEMU 8.2.2 自带的版本相同），已编译好，带符号的固件位于 `~/Code/opensbi/build/platform/generic/firmware/fw_dynamic.elf`。
+* 重新编译：`make PLATFORM=generic CROSS_COMPILE=riscv64-unknown-elf-`。本机 GCC 15 默认采用 C23，`bool` 会和 OpenSBI 的 typedef 冲突，所以已在该仓库 Makefile 的 CFLAGS 中加了 `-std=gnu11`（只改了这一处，没有改源码）。
+* 使用：`make debug OPENSBI=<上面的路径>`，配合 `make gdb OPENSBI=<同一路径>`（lab1 的 code/Makefile 已支持）。之后可以按函数名下断点，例如 `sbi_hart_init`、`sbi_hart_switch_mode`、`sbi_ecall_handler`、`uart8250_putc`。截图时设置 `MAKEARGS="OPENSBI=..."` 再调用 tmux-gdb.sh。
+* 注意：自己编译的固件与 QEMU 自带的固件逻辑相同，但内存布局不同（190 KB、读写区从 0x80020000 开始，自带的是 322 KB、从 0x80040000 开始），所以两者的地址不能混用。
+* 后续 lab 如果要在 Makefile 中加入 `OPENSBI` 变量，可以照搬 lab1 的写法（`-bios $(OPENSBI)`，以及 `GDB_OPENSBI` 变量）。
 
 ## 截图（终端）
 
