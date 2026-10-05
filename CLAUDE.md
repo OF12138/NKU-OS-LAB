@@ -13,6 +13,7 @@
 ```
 labx 分支
 ├── code/                     # 实验代码
+├── reference/                # 参考资料
 ├── report/
 │   ├── report.md             # 最终报告
 │   ├── prompt.md             # 提示词汇总
@@ -29,6 +30,7 @@ labx 分支
 
 * 实验指导书网址：  http://8.135.34.58/lab2026/_book/ ，经常更新，可以使用claude-in-chrome查看。**通常实验要求就在指导书中。**
 * 实验答疑平台： https://nankai.feishu.cn/docx/VgvqdhoIxotMuBxaYdWc6NhDnWg?from=from_copylink 可以尝试使用飞书CLI进行访问。
+* 前辈参考资料: 在目录 reference/ 下。只能参考不能抄袭。
 * 其他课程动态通常在微信群聊中发布，可以询问用户。
 
 
@@ -37,7 +39,7 @@ labx 分支
 
 * 成员：**openfar**、**lyp**、**nagilix**。每个人及其 agent 都以该成员的身份工作。
 * **openfar **：创建 lab 分支并初始化 `.handoff/`，指派任务，审核任务，把各 section 合并进 `report.md` 和 `prompt.md`，负责最终的 `make grade` 验证。
-* **任务一律由 openfar 指派**。其他成员和 agent 不能自行认领或改派任务；有异议时写在对应任务文件的「留言」区。
+* **任务由 openfar 指派**，
 * 通过一个 agent 调用另一个 agent（例如在 Claude Code 里调用 Codex）时，被调用方继承调用者的身份和任务范围，同样遵守本规范。
 
 
@@ -158,8 +160,9 @@ labx 分支
 
 * 每取得一次有意义的进展，以及每次 session 结束前，都要更新自己的任务文件（进度、下一步、验证结果、迭代素材），在节点处整理提示词（见「提示词整理」）和看板上自己的状态，然后 commit 并 push。
 * 修改了其他任务依赖的接口或文件时，要在「全组须知」里写明。
-* 任务完成后把状态改为 `待审`，由 openfar 审核后改为 `完成`。
-* 测试（`make qemu` / `make grade`）没有通过的代码，不能标记为待审，也不能合并进最终版本。
+* 定时进行测试
+
+* 当自己的工作全部完成or被阻塞时，使用飞书CLI（send as user) 向其他人/被阻塞的工作的负责人 （lyp aka 李云鹏 2414099）/（openfar aka 张远 2411264) / （nagilix aka 刘昀皓 2413074）发送消息，通知当前进度（lab DDL， 自己做了什么，对方需要做什么...），每次发送信息时表明自己的bot身份。
 
 ## 定时反推prompt
 
@@ -169,4 +172,4 @@ labx 分支
 
 # Others
 
-* 此项目中使用简体中文和用户对话，撰写报告，写注释。
+* 此项目中使用简体中文和用户对话/撰写报告/写注释。
