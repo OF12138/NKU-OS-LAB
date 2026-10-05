@@ -54,7 +54,8 @@ void sbi_console_putchar(unsigned char ch) {
 2. 从 0x1000 到 0x80200000 经过了哪几个阶段，每个阶段运行在什么特权级，由谁提供。
 3. OpenSBI 把控制权交给内核的具体时刻和方式（哪条指令、跳转地址、特权级如何变化）。
 4. 核实指导书中关于“OpenSBI 加载内核、用 watch 观察”的提示是否成立。
-5. 至少 3 张调试截图（复位处、交接给内核处、watch 实验），并在报告中引用。
+5. 一张启动流程与物理内存布局的示意图，以及调试截图（复位处、交接给内核处、watch 实验、内核调用 SBI），每张图插在对应的文字中间。
+6. 说明真实硬件上内核由谁加载，与 QEMU 的做法有何不同。
 
 [SPECIFICATION]
 
@@ -93,3 +94,4 @@ void sbi_console_putchar(unsigned char ch) {
 **Requirements**:
 - 所有地址、寄存器值和指令都必须来自本次实际运行的输出。
 - 面向不熟悉 OpenSBI 的读者，先讲清楚 M/S/U 特权级和 SBI 的作用，再展开细节。
+- 示意图采用传统工科风格：黑白、直角矩形。截图使用真实终端画面，左栏 make debug、右栏 make gdb。

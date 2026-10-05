@@ -1,175 +1,32 @@
-# 目录结构规范
+@AGENTS.md
 
-这是一个多人协作的repo，同时作为实验交付产品
+> 以上是全组共用的规范（AGENTS.md 是唯一来源，修改规范请改 AGENTS.md）。以下是 openfar 本机 Claude Code 的附加须知，其他成员可以忽略。
 
-## 助教要求如下
 
-* 一个分支对应一次实验，并以“labx”命名（例如：lab1），每一个分支中至少两个文件夹，分别以“code”和“report”命名。
-* code文件夹包含对应实验的实现后的代码
-* report文件夹中包含实验报告，以”report.md“命名 (嵌入的图片放在同级images/下) ，具体格式参考report-template.md、提示词文件以“prompt.md”命名，汇总本实验所有的prompt
 
-## 本组约定
+# 本机 Claude 须知（openfar）
 
-```
-labx 分支
-├── code/                     # 实验代码
-├── reference/                # 参考资料
-├── report/
-│   ├── report.md             # 最终报告
-│   ├── prompt.md             # 提示词汇总
-│   ├── sections/             # 各任务的报告章节与提示词，见下方「报告分 section 撰写」「提示词整理」
-│   └── images/               # 报告图片
-└── .handoff/                 # 协作状态，见下方「.handoff/ 协作规范」
-```
+## 环境
 
+* Claude Code 运行在 Windows 上，编译和调试通过 `wsl -e bash -c '...'` 在 WSL Ubuntu 中进行。WSL 的 bash 是非交互式的，不会读取 `.bashrc`，需要手动设置 PATH：`export PATH=$HOME/Environment/riscv/riscv-elf-toolchains/bin:$PATH`。
+* 本机 QEMU：`/usr/bin/qemu-system-riscv64` 8.2.2，自带 OpenSBI v1.3（fw_dynamic）。OpenSBI 的 ELF 位于 `/usr/share/qemu/opensbi-riscv64-generic-fw_dynamic.elf`，没有符号表。
+* 从 Git Bash 调用 wsl 时，要加 `MSYS_NO_PATHCONV=1`，否则 `/mnt/...` 路径会被改写。
+* GDB 连接失败、报 `vMustReplyEmpty: timeout` 时，通常是 1234 端口被残留的 qemu 占用，先执行 `pkill -f qemu-system-riscv64`。
+* 引用仓库代码做实验或截图时，要用 `git archive HEAD code` 导出干净的副本：用户本地可能有未提交的学习注释，会改变源码行号。
 
+## 截图（终端）
 
-# 课程资源
+* 用户偏好 Windows Terminal 的现代显示效果（浅色主题），不要用 conhost 的黑底窗口。
+* 流程：先用 `.claude/tools/tmux-gdb.sh <WSL 中的 code 目录> "<gdb 命令>" ...` 在 WSL 中建好 tmux 分栏（左栏 make debug，右栏 make gdb），再在 PowerShell 中运行 `.claude/tools/capture-wt.ps1 -Out <png> -Cols 170 -Lines <行数>`。脚本会打开一个标题为 `lab1-gdb` 的 Windows Terminal 窗口，attach 到 tmux 会话，用 `PrintWindow` 截取后关闭这个窗口。
+* 截图窗口会弹出几秒，期间用户在键盘上打字会被输入进去，所以截图前要提醒用户。截完后检查画面里有没有多余字符。
 
-该课程提供了网页教程以及Q&A答疑平台等资源
+## 画图
 
-* 实验指导书网址：  http://8.135.34.58/lab2026/_book/ ，经常更新，可以使用claude-in-chrome查看。**通常实验要求就在指导书中。**
-* 实验答疑平台： https://nankai.feishu.cn/docx/VgvqdhoIxotMuBxaYdWc6NhDnWg?from=from_copylink 可以尝试使用飞书CLI进行访问。
-* 前辈参考资料: 在目录 reference/ 下。只能参考不能抄袭。
-* 其他课程动态通常在微信群聊中发布，可以询问用户。
+* 风格：传统工科风格，黑白、不用彩色，矩形用尖角（直角），不用圆角。中文用宋体（SimSun），西文用 Times New Roman，地址用 Consolas。
+* 用 matplotlib 画图时使用 conda 环境 FCOS（`D:\Applications\Anaconda\envs\FCOS\python.exe`）。base 环境的 numpy/matplotlib 会崩溃（0xc06d007e），其他环境的 matplotlib 可能也有问题。
+* 示例脚本：`.claude/tools/diagram-example.py`（lab1 启动流程图）。SimSun 中没有 `⋮` 这类特殊符号，需要改用图形元素绘制。
 
+## 报告写法
 
-
-# 角色与分工
-
-* 成员：**openfar**、**lyp**、**nagilix**。每个人及其 agent 都以该成员的身份工作。
-* **openfar **：创建 lab 分支并初始化 `.handoff/`，指派任务，审核任务，把各 section 合并进 `report.md` 和 `prompt.md`，负责最终的 `make grade` 验证。
-* **任务由 openfar 指派**，
-* 通过一个 agent 调用另一个 agent（例如在 Claude Code 里调用 Codex）时，被调用方继承调用者的身份和任务范围，同样遵守本规范。
-
-
-
-# Git 提交规范
-
-* 每一个lab过程中，所有成员/agent在当前的labx分支中工作。
-* 每个 labx 分支都从 main 切出。main 只保存项目规范和模板。
-* 提交信息以任务 ID 开头，例如 `T2: 补充 GDB 跟踪截图`；只改 `.handoff/` 的提交写成 `handoff: ...`。
-* push 前先 `git pull --rebase`。不能用覆盖他人改动的方式解决冲突，拿不准的地方要保守处理，并在留言区说明。
-
-
-
-# .handoff/ 协作规范
-
-`.handoff/` 是所有人和 agent 共享的状态目录，里面只保存**当前有用的状态**，包括目标、指派、进度、决策、依赖接口、验证结果、阻塞项和下一步。不要在这里写流水账或大段推理过程。
-
-**每个 labx 分支单独维护 `.handoff/`，不继承 main 或上一个 lab 的内容。**
-
-```
-.handoff/
-├── STATUS.md              # 本 lab 总览，是唯一由多人共同编辑的文件
-└── tasks/
-    └── T<n>-<短名>.md     # 一个任务一个文件，例如 T2-gdb-boot.md
-```
-
-## STATUS.md
-
-```markdown
-# Lab<N> 状态    截止：YYYY-MM-DD    集成负责人：openfar
-
-## 目标
-（1-3 行，概括本 lab 要交付的内容）
-
-## 任务看板
-| ID | 任务 | 负责人 | 状态 | 可改文件 |
-|----|------|--------|------|----------|
-| T1 | ... | lyp | 进行中 | code/kern/init/entry.S, report/sections/T1-*.md |
-
-## 集成状态
-- make qemu ⬜   make grade ⬜   report.md 已合并 ⬜   prompt.md 已合并 ⬜
-
-## 全组须知
-（不超过 5 条，例如公共接口变更、环境问题。过时的条目要删掉）
-```
-
-* 只修改**自己任务那一行的「状态」列**，需要时可以在「全组须知」里增加条目。
-* 状态只有这几种：`待开始` / `进行中` / `阻塞` / `待审` / `完成`。
-
-## tasks/T\<n\>-\<短名\>.md
-
-```markdown
-# T<n> <任务名>
-- 负责人：xxx    状态：进行中    依赖：T1（如有）
-- 可改文件：（与看板一致）
-
-## 要求
-（指导书原文或 openfar 的指派说明）
-
-## 当前进度 / 下一步
-
-## 关键决策与结论
-（包括其他任务可能依赖的接口和文件）
-
-## 验证结果
-（命令、结果摘要、截图文件名）
-
-## 迭代素材
-（工作中遇到的真实问题，每条 1～2 行：现象/错误信息 → 原因 → 怎么调整的）
-
-## 留言
-（非负责人只能在这里追加，每条格式为 `- [名字 日期] 内容`）
-```
-
-* **「可改文件」起到文件锁的作用**：只能修改自己任务名下的文件。如果必须改动别人的文件，先在对方任务文件的留言区说明。
-* 「迭代素材」要在问题发生时随手记下。它是报告中「实现迭代过程」的原始素材，事后很难补全。
-
-
-
-# 报告分 section 撰写
-
-* 每个任务的负责人把报告内容写在 `report/sections/T<n>-<短名>.md`，格式按 `report-template.md` 中对应的部分来写，例如「功能模块」「练习」或「Challenge」。
-* 实验目的、整体逻辑、测试与验证、实验总结这类全组共享的章节，也作为任务指派给某个人，写法相同。
-* 图片放在 `report/images/`，文件名以任务 ID 开头（例如 `T2-break-0x80200000.png`）。section 里的引用路径按 report.md 的位置来写（`./images/xxx.png`），这样合并时可以直接复制。
-* `report.md` 和 `prompt.md` 由 openfar 合并编辑。
-
-
-
-# 提示词整理
-
-课程要求提交「按模板写的、迭代优化后的最终版提示词」。大家平时怎么和 agent 交流都可以，**不要求逐字记录**。每到一个节点，由负责人的 agent 根据本任务实际完成的工作和指导书的要求，整理出一份符合模板的提示词。
-
-* **什么时候整理**：完成一个可以独立验证的子目标之后，以及把任务改为「待审」之前，都要新建或更新一次。
-* **放在哪里**：`report/sections/T<n>-<短名>.prompt.md`。一个任务包含几个独立的功能，就写几段提示词。openfar 负责汇总进 `prompt.md`；对于「功能模块」，还要把它放进报告的「最终提示词」部分。
-* **写法**：采用指导书的四段式，粒度为「一个可以独立实现、独立验证的完整功能」对应一段：
-
-```
-[PROMPT]        任务：目标文件/模块及其功能；操作要求：直接修改真实文件，保留现有代码；输出要求
-[RELY]          最小且可信的上下文：从代码中原样复制的宏、数据结构、可调用的函数、全局变量
-[GUARANTEE]     必须实现或修改的接口签名（分析类任务：写必须回答的问题和需要交付的产出）
-[SPECIFICATION] 每个接口依次写 Pre-Condition / Post-Condition / Case 1..n / Requirements（后两项可选）
-```
-
-* **以实际工作为准**：提示词描述的需求，必须和最终的代码或结论一致；[RELY] 必须和代码逐字一致；指导书提出的要求都要覆盖到。
-* **迭代过程**：报告的「实现迭代过程」以任务文件中的「迭代素材」为依据，每一轮都对应真实遇到的问题和调整。
-
-
-
-# 工作流
-
-## 每次 session 启动时
-
-1. 确认你的角色（openfar、lyp 或 nagilix）。如果提示词中没有说明，询问用户。
-2. 切换到当前 labx 分支，执行 `git status` 检查同步状态，然后 `git pull --rebase` 拉取更新并处理冲突。
-3. 阅读 `.handoff/STATUS.md` 和自己名下的任务文件，再开始工作。
-
-## 工作中和 session 结束前
-
-* 每取得一次有意义的进展，以及每次 session 结束前，都要更新自己的任务文件（进度、下一步、验证结果、迭代素材），在节点处整理提示词（见「提示词整理」）和看板上自己的状态，然后 commit 并 push。
-* 修改了其他任务依赖的接口或文件时，要在「全组须知」里写明。
-* 定时进行测试
-
-* 当自己的工作全部完成or被阻塞时，使用飞书CLI（send as user) 向其他人/被阻塞的工作的负责人 （lyp aka 李云鹏 2414099）/（openfar aka 张远 2411264) / （nagilix aka 刘昀皓 2413074）发送消息，通知当前进度（lab DDL， 自己做了什么，对方需要做什么...），每次发送信息时表明自己的bot身份。
-
-## 定时反推prompt
-
-* 根据“提示词整理”中的要求，每完成一个小目标，反推一次Prompt并记录。
-
-
-
-# Others
-
-* 此项目中使用简体中文和用户对话/撰写报告/写注释。
+* 动笔前先参考 `reference/` 中前辈的同类报告，防止偏题或掉坑；只能参考，不能抄袭。
+* 图片插在相关文字中间，不要集中放在末尾；每张图下面写图题（`<center>图 x-y　……</center>`）。

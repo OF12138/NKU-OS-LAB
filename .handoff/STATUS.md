@@ -8,7 +8,7 @@
 |----|------|--------|------|----------|
 | T0 | 环境兼容：让 make qemu / make debug 在各版本 QEMU 下都能启动内核 | openfar | 完成 | code/Makefile, report/sections/T0-*.md |
 | T1 | 练习1：entry.S 中 la sp / tail kern_init 的分析 | lyp | 待开始 | report/sections/T1-*.md |
-| T2 | 练习2：用 GDB 跟踪 0x1000 → OpenSBI → 0x80200000 | openfar | 进行中 | report/sections/T2-*.md, report/images/T2-* |
+| T2 | 练习2：用 GDB 跟踪 0x1000 → OpenSBI → 0x80200000 | openfar | 完成 | report/sections/T2-*.md, report/images/T2-* |
 | T3 | 核心模块理解：链接脚本与内存布局、SBI→cprintf 输出链、构建流程 | lyp | 待开始 | report/sections/T3-*.md |
 | T4 | 知识点对照：实验与 OS 原理的对应，以及原理中本实验未覆盖的知识点 | lyp | 待开始 | report/sections/T4-*.md |
 | T5 | 整体逻辑主线 + 集成（合并 report.md 和 prompt.md） | openfar | 待开始 | report/sections/T5-*.md, report/report.md, report/prompt.md |
@@ -22,4 +22,4 @@
 2. **指导书不可全信**：练习 2 的提示说“OpenSBI 把内核加载到 0x80200000，可用 watch 观察加载瞬间”，至少在新版 QEMU 上是错的：GDB 停在 0x1000 时，0x80200000 处已经是 kern_entry 的指令。另外，lab1 页面里的文件树与实际代码不符，示例输出的 OpenSBI 版本也因环境而异。凡是引用指导书的结论，都要先对照代码或实测确认。
 3. 2026 版 lab1 框架代码与 2025 版完全相同，往届资料可以参考，但报告必须自己写。
 4. **Q&A 答复**：lab1 只要求 make qemu 能运行；报告由小组共同完成，放在 git 仓库里；提示词按模板写，只提交迭代优化后的最终版，不要交聊天记录导出。
-5. **提示词**：按 CLAUDE.md 中「提示词整理」一节的要求，在节点处整理到 `report/sections/T<n>-*.prompt.md`，工作中遇到的问题随手记进任务文件的「迭代素材」。
+5. **提示词**：按 AGENTS.md 中「提示词整理」一节的要求，在节点处整理到 `report/sections/T<n>-*.prompt.md`，工作中遇到的问题随手记进任务文件的「迭代素材」。
