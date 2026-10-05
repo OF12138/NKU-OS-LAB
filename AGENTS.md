@@ -123,7 +123,7 @@ labx 分支
 
 * 每个任务的负责人把报告内容写在 `report/sections/T<n>-<短名>.md`，格式按 `report-template.md` 中对应的部分来写，例如「功能模块」「练习」或「Challenge」。
 * 实验目的、整体逻辑、测试与验证、实验总结这类全组共享的章节，也作为任务指派给某个人，写法相同。
-* 图片放在 `report/images/`，文件名以任务 ID 开头（例如 `T2-break-0x80200000.png`）。section 里的引用路径按 report.md 的位置来写（`./images/xxx.png`），这样合并时可以直接复制。
+* 图片放在 `report/images/`，文件名以任务 ID 开头（例如 `T2-break-0x80200000.png`）。section 位于 `report/sections/`，图片引用写成 `../images/xxx.png`，这样在 Typora 等编辑器里打开 section 文件时能直接看到图片；openfar 合并进 report.md 时统一替换为 `./images/`。
 * `report.md` 和 `prompt.md` 由 openfar 合并编辑。
 
 
