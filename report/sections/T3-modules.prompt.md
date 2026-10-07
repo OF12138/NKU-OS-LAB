@@ -42,7 +42,7 @@ Requirements：不把段标志当成已经开启的页表权限；不把页对�
 [PROMPT]
 任务：分析内核从 cprintf 到 ecall 的输出功能，撰写 T3 报告的输出模块。
 操作要求：直接写入真实报告文件，不修改代码；按源码顺序说明每层职责。
-输出要求：列出完整调用链、主要接口、格式化与实际设备输出所在特权级、字符参数和 SBI 调用号，以及源码与反汇编之间的区别。
+输出要求：列出源码调用链，解释各层职责；插入 T2 的 ecall 和 UART 调试截图，结合寄存器与调用栈说明格式化、陷入、设备输出和返回。注明截图环境与本机产物的地址差异。
 
 [RELY]
 以下声明原样摘自 code/libs/stdio.h、code/kern/driver/console.h、code/libs/sbi.h：
@@ -76,7 +76,7 @@ Requirements：只说明本框架实际支持和使用的旧式 SBI console_putc
 [PROMPT]
 任务：分析 Makefile/function.mk 从源文件到 ELF 和裸镜像的流程，补全 T3 构建模块及验证记录。
 操作要求：直接修改真实报告文件，保留现有代码；在独立干净副本中编译运行。
-输出要求：以当前 make 规则和 readelf 结果为准说明产物区别，结合 T0 解释当前 QEMU 加载方式。
+输出要求：以当前 make 规则和 readelf 结果说明产物区别，结合 T0 解释当前 QEMU 加载方式；正文集中讲代码、观察和结果，环境调用故障留在任务文件。
 
 [RELY]
 原样摘自 code/Makefile：
