@@ -44,7 +44,6 @@ kern_entry: # This is one label and in assembly it will be replaced by specific 
     .global bootstack # 导出并定义标签 bootstack
 bootstack:
     .space KSTACKSIZE # reserve 8192 bytes and inited with 0 by default. 
-    # .space 放在 .data 段，而不是 .bss 段，因此 8KB 的零会真实占用内核镜像的文件体积。放到 .bss 能省掉这 8KB，不过这只影响镜像大小，不影响功能。
     
     .global bootstacktop
 bootstacktop: # export and define bootstacktop. this is the high addr of stack. 
