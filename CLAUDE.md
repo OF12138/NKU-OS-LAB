@@ -51,4 +51,5 @@
 
 * 动笔前先参考 `reference/` 中前辈的同类报告，防止偏题或掉坑；只能参考，不能抄袭。
 * 图片插在相关文字中间，不要集中放在末尾；每张图下面写图题 `<p align="center">图 x-y　……</p>`。**不要用 `<center>`**：GitHub 会删掉这个标签，导致不居中；`align="center"` 在 GitHub 和 Typora 上都有效。
+* **工作区里有用户未提交的文件时，禁止 `git stash`、`git pull --autostash`、`git checkout -- <文件>` 等任何会临时改写这些文件的操作。** lab1 时 autostash 把 report.md 换回旧版本的那一两秒里，Typora 读到旧内容并存了回去，覆盖了用户的修改（后来从 autostash 快照中恢复）。正确做法：只 `git add` 自己的文件并提交，`git fetch` 确认远端没有新提交后直接 `git push`；远端有新提交时，在独立的 worktree 里 rebase 后再推，或者等用户提交完再拉取。
 * **report.md 由用户亲自修改。** 用户改它期间，不运行任何会写 report.md 的脚本；之后补内容只用 `merge-report.py --fill`，运行前先 `git status` 确认 report.md 没有未提交的修改，有就先停下来问用户。
