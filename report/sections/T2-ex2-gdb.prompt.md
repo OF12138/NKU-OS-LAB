@@ -16,19 +16,20 @@ debug: $(UCOREIMG) $(SWAPIMG) $(SFSIMG)
 	$(V)$(QEMU) \
 		-machine virt \
 		-nographic \
-		-bios default \
+		-bios $(OPENSBI) \
 		-kernel $(kernel) \
 		-s -S
 
 gdb:
 	riscv64-unknown-elf-gdb \
     -ex 'file bin/kernel' \
+    $(GDB_OPENSBI) \
     -ex 'set arch riscv:rv64' \
     -ex 'target remote localhost:1234'
 ```
 
 ```asm
-# code/kern/init/entry.S
+# code/kern/init/entry.S（省略注释）
 kern_entry:
     la sp, bootstacktop
     tail kern_init

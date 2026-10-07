@@ -6,9 +6,10 @@
 输出要求：用简洁对照表解释本实验知识点与原理的关系，未覆盖内容按主题归纳；围绕实际代码说明差异，避免重复写成审计清单或加入空泛感想。
 
 [RELY]
-原样摘自 code/kern/init/init.c：
+原样摘自 code/kern/init/init.c（省略行尾注释）：
 ```c
-int kern_init(void) {
+int kern_init(void)
+{
     extern char edata[], end[];
     memset(edata, 0, end - edata);
 

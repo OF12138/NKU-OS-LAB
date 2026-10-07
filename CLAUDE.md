@@ -36,6 +36,16 @@
 * 用 matplotlib 画图时使用 conda 环境 FCOS（`D:\Applications\Anaconda\envs\FCOS\python.exe`）。base 环境的 numpy/matplotlib 会崩溃（0xc06d007e），其他环境的 matplotlib 可能也有问题。
 * 示例脚本：`.claude/tools/diagram-example.py`（lab1 启动流程图）。SimSun 中没有 `⋮` 这类特殊符号，需要改用图形元素绘制。
 
+## 用户偏好
+
+* 用户本地有未提交的修改（学习注释、报告润色等）时，检查没有大问题就**直接提交，不用询问**。代码改动要先确认编译通过、`make qemu` 正常；只加注释时可以比较 `.text` 段，确认与提交版逐字节相同。
+* 代码注释会让提示词 [RELY] 的引文过时：提交代码改动后运行 `python .claude/tools/check-rely.py` 复查。
+
+## 集成工具
+
+* `python .claude/tools/merge-report.py [完成日期]`：按模板顺序把 report/sections/ 合并成 report.md 和 prompt.md，图片路径改成 `./images/`，图号按出现顺序统一编号，指向 prompt 文件的相对链接改为纯文本，缺失的 section 用“【待补】”占位。新 lab 要按该 lab 的 section 名调整脚本中的 `parts`。
+* `python .claude/tools/check-rely.py`：逐行检查各提示词 [RELY] 中的代码是否仍在 code/ 中（比较时忽略注释），标注“修改前”的引文会跳过。
+
 ## 报告写法
 
 * 动笔前先参考 `reference/` 中前辈的同类报告，防止偏题或掉坑；只能参考，不能抄袭。

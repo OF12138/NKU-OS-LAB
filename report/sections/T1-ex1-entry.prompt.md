@@ -6,7 +6,7 @@
 输出要求：围绕源码和单步观察回答问题，只使用 lyp 自己实测产生的图片并解释寄存器变化，不引用 T2 图片。区分伪指令、链接松弛后的机器指令与编译期栈空间预留，协作记录不写进正文。
 
 [RELY]
-以下内容分别原样摘自 entry.S、mmu.h、memlayout.h、init.c：
+以下内容分别原样摘自 entry.S、mmu.h、memlayout.h、init.c（entry.S 与 init.c 省略了注释行和行尾注释）：
 ```asm
 kern_entry:
     la sp, bootstacktop

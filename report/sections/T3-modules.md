@@ -55,7 +55,7 @@ BASE_ADDRESS = 0x80200000;
 输出要求：结合 nm、readelf 与 make print-kobjs，解释入口、段顺序、边界符号和装载地址；明确链接器与装载器的不同职责。
 
 [RELY]
-原样摘自 code/tools/kernel.ld：
+原样摘自 code/tools/kernel.ld（省略行尾注释）：
 ```ld
 OUTPUT_ARCH(riscv)
 ENTRY(kern_entry)

@@ -1,5 +1,5 @@
 # T5 整体逻辑主线与集成
-- 负责人：openfar    状态：待开始    依赖：T1–T4, T6
+- 负责人：openfar    状态：进行中    依赖：T1–T4, T6
 - 可改文件：report/sections/T5-*.md, report/report.md, report/prompt.md
 
 ## 要求
@@ -7,12 +7,21 @@
 - 集成工作：把各 section 合并进 report.md，并整理 prompt.md。
 
 ## 当前进度 / 下一步
+- 已完成：整体逻辑主线 report/sections/T5-mainline.md 及其提示词 T5-mainline.prompt.md。
+- 已生成 report.md / prompt.md **草稿**（合并 T0–T5），T6 的 5 个部分用“【待补】”占位。T6 提交后重新运行合并脚本，再做终审。
+- 下一步：等 T6；终审时检查各 section 之间的说法是否一致、图片是否显示正常、全文风格是否统一。
 
 ## 关键决策与结论
+- 报告结构按 report-template.md：一 目的(T6) / 二 环境(T6) / 三 整体逻辑(T5) / 四 实验内容(T1→T2→T3→T0→T6 拓展) / 五 测试(T6) / 六 总结(T4 + T6)。
+- 合并时图片路径统一改为 ./images/，图号按出现顺序统一编为“图 1～N”，正文中的旧图号引用同步替换，指向 *.prompt.md 的相对链接改为纯文本。
+- 代码加入学习注释后，各提示词的 [RELY] 引文统一注明“省略注释”；kern_init 的大括号换了行，T4/T5 的引文已更新；T2 的 Makefile 引文更新为当前版本（-bios $(OPENSBI)、$(GDB_OPENSBI)）。
 
 ## 验证结果
+- 当前 report.md 草稿共 11 张图，编号连续；[RELY] 逐行比对全部通过（比较时忽略注释）。
 
 ## 迭代素材
+- 提交用户的学习注释后，多份提示词的 [RELY] 引文与源码不再逐字一致（行尾注释、kern_init 大括号换行、Makefile 新增 OPENSBI）。改为“省略注释并注明”，更新过时引文，并用脚本逐行比对确认。
+- 三人的图号格式不同（图 T1-1、图 2-x、图 T3-x），合并时统一按出现顺序重新编号。
 
 ## 留言
 
