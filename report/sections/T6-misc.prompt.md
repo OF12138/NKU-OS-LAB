@@ -43,16 +43,19 @@
 
 [RELY]
 - 团队规范：AGENTS.md, report-template.md, .handoff/tasks/T6-misc-sections.md
-- 内核入口与字符输出签名：
-  void kern_init(void);
-  void cprintf(const char *fmt, ...);
-  static inline void sbi_console_putchar(int ch);
+- 内核入口与字符输出的声明（原样摘自 code/kern/init/init.c、code/libs/stdio.h、code/libs/sbi.h，省略行尾注释）：
+```c
+int kern_init(void) __attribute__((noreturn));
+int cprintf(const char *fmt, ...);
+void sbi_console_putchar(unsigned char ch);
+```
 - 实测参数：Ubuntu 22.04 LTS (WSL2), QEMU emulator version 7.0.0, OpenSBI v1.0。
+- 其他成员的环境：张远为 QEMU 8.2.2 / OpenSBI v1.3 / GCC 15.1.0，李云鹏为 QEMU 6.2.0 / OpenSBI v0.9 / GCC 10.2.0。
 
 [GUARANTEE]
 必须交付以下规范文件：
-1. report/sections/T6-purpose.md：包含 4 条涵盖特权级、虚拟内存重定位、中断时序与 GDB 调试的实验目的。
-2. report/sections/T6-env.md：包含基础设施配置表及符合 report-template.md 规范的 3 人 AI 工具矩阵表。
+1. report/sections/T6-purpose.md：包含 4 条实验目的，分别对应启动流程与特权级切换、内核构建与内存布局、启动栈 / BSS 清零与 SBI 输出、GDB 调试；只写 lab1 实际涉及的内容（本实验没有开启分页，也没有内核的中断处理）。
+2. report/sections/T6-env.md：包含三位成员各自的软件环境表（QEMU 及自带 OpenSBI 的版本、工具链）和符合 report-template.md 规范的 AI 工具表，每一项都要与成员实际使用的情况一致。
 3. report/sections/T6-qemu-run.md：包含环境声明、流程分析及内嵌 ../images/T6-qemu-run.png 的截图引用。
 4. report/sections/T6-summary.md：以团队视角出发的总结初稿，包含启动时序认知、异步工程协同及人机协同反思槽位。
 

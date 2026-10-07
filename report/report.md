@@ -17,14 +17,44 @@
 
 # 一、实验目的
 
-> **【待补】实验目的（T6，nagilix）** <!-- fill:T6-*purpose*.md -->
+本实验在 QEMU 模拟的 RISC-V 64 位 virt 平台上，构建并调试一个最小可执行内核，从加电复位一直跟踪到内核打印出第一行信息。主要目的有：
+
+1. **理解从加电到内核的启动流程**：弄清复位代码（`0x1000`）、M 态固件 OpenSBI（`0x80000000`）和 S 态内核（`0x80200000`）之间如何交接，包括通过寄存器传递的启动参数（`a0` 为 hart 编号，`a1` 为设备树地址），以及 OpenSBI 如何用 `mret` 从 M 态切换到 S 态。
+
+2. **掌握内核的构建与内存布局**：学会用链接脚本指定内核的入口和各段的地址，理解交叉编译、链接生成 ELF 文件、再用 objcopy 生成镜像的完整过程，以及 QEMU 如何把内核装载到约定的地址。
+
+3. **理解内核如何建立运行环境并与外界交互**：理解入口汇编为什么要先建立启动栈、C 代码开始前为什么要清零 BSS，以及内核如何通过 `ecall` 调用 OpenSBI 提供的 SBI 服务，实现格式化输出。
+
+4. **学会用 GDB 调试裸机内核**：通过 `make debug` 和 `make gdb` 把 GDB 连接到 QEMU，在没有操作系统支持的环境下设置指令级断点、单步执行、查看寄存器和内存，用调试结果验证以上过程。
 
 
 
 
 # 二、实验环境
 
-> **【待补】实验环境表（T6，nagilix）** <!-- fill:T6-*env*.md -->
+## 软件环境
+
+三位成员各自在 WSL 中搭建了实验环境，QEMU 版本各不相同，自带的 OpenSBI 版本也随之不同。报告中各处的地址和截图都注明了所用环境，不同版本的地址不能混用。
+
+| 成员 | 宿主系统 | QEMU（自带 OpenSBI） | 交叉工具链 | 报告中对应的实验 |
+| :--- | :--- | :--- | :--- | :--- |
+| 2411264-张远 | WSL2 Ubuntu 24.04 | 8.2.2（OpenSBI v1.3） | riscv64-unknown-elf-gcc 15.1.0 | 练习 2、Makefile 的修改 |
+| 2414099-李云鹏 | WSL2 Ubuntu 22.04 | 6.2.0（OpenSBI v0.9） | SiFive riscv64-unknown-elf-gcc 10.2.0 | 练习 1、功能模块 |
+| 2413074-刘昀皓 | WSL2 Ubuntu 22.04 | 7.0.0（OpenSBI v1.0） | riscv64-unknown-elf-gcc 11.4.0 | 测试与验证 |
+
+调试器均为工具链自带的 `riscv64-unknown-elf-gdb`。Makefile 改用 `-kernel` 加载内核之后（见练习 2 第二节的“版本差异”说明），`make qemu` 在以上三个版本的 QEMU 上都能正常启动内核。
+
+## AI 工具
+
+| 成员 | AI 编程工具 | 底层模型 | 备注 |
+| :--- | :--- | :--- | :--- |
+| 2411264-张远 | Claude Code（终端 Agent） | Claude Opus 5.5 | 在 Windows 上运行，通过 WSL 编译和调试 |
+| 2414099-李云鹏 | Codex（终端 Agent） | （待确认） | |
+| 2413074-刘昀皓 | VS Code（WSL）+ 网页对话 | Claude 3.5 Sonnet / DeepSeek-R1 | |
+
+**说明：**
+- **AI 编程工具**：指具体使用的终端工具、编辑器插件、桌面应用或浏览器界面。
+- **底层模型**：指该工具使用的大语言模型及版本。
 
 
 
@@ -105,7 +135,7 @@ bootstacktop:
 
 ![lyp本机入口单步实验](./images/T1-entry-step.jpg)
 
-<center>图 1　启动栈设置和尾跳转的 GDB 输出（lyp 本机，QEMU 6.2.0 / OpenSBI v0.9）</center>
+<p align="center">图 1　启动栈设置和尾跳转的 GDB 输出（lyp 本机，QEMU 6.2.0 / OpenSBI v0.9）</p>
 
 ### 2. 为什么一条 `la` 要单步两次
 
@@ -174,7 +204,7 @@ RISC-V 有三个常用的特权级：**M 态**（Machine）权限最高，可以
 
 ![启动流程与物理内存布局](./images/T2-0-boot-overview.png)
 
-<center>图 2　lab1 的启动流程与物理内存布局</center>
+<p align="center">图 2　lab1 的启动流程与物理内存布局</p>
 
 调试环境为 WSL Ubuntu，QEMU 8.2.2（自带 OpenSBI v1.3），GDB 使用 `riscv64-unknown-elf-gdb`。
 
@@ -186,7 +216,7 @@ GDB 连上之后，先确认 CPU 的初始状态，再反汇编 PC 处的指令�
 
 ![GDB 连接后停在 0x1000](./images/T2-1-reset-0x1000.png)
 
-<center>图 3　复位后的第一条指令位于 0x1000，CPU 处于 M 态</center>
+<p align="center">图 3　复位后的第一条指令位于 0x1000，CPU 处于 M 态</p>
 
 `priv` 为 3，表示 CPU 处于 M 态；PC 是 0x1000，这里只有 6 条指令。逐条单步并观察寄存器，各条指令的作用如下：
 
@@ -203,7 +233,7 @@ GDB 连上之后，先确认 CPU 的初始状态，再反汇编 PC 处的指令�
 
 图中最后一条命令 `x/2i 0x80200000` 显示，**此时内核的第一条指令已经在 0x80200000 了**，而 CPU 一条指令都还没有执行。这个现象在第五节会进一步讨论。
 
-> **版本差异**：在课程推荐的 QEMU 4.1 中（见其源码 `hw/riscv/virt.c`），复位代码只有 5 条指令，不设置 a2；配套的 OpenSBI 是 fw_jump 型，下一阶段地址在编译时就固定为 0x80200000，不需要 QEMU 传参。新版 QEMU 改用 fw_dynamic 型固件，入口地址改由 QEMU 动态传入，这也是原框架 Makefile 在新版 QEMU 上无法启动内核的原因（见「对实验框架的修改」一节）。
+> **版本差异**：在课程推荐的 QEMU 4.1 中（见其源码 `hw/riscv/virt.c`），复位代码只有 5 条指令，不设置 a2；配套的 OpenSBI 是 fw_jump 型，下一阶段地址在编译时就固定为 0x80200000，不需要 QEMU 传参。新版 QEMU 改用 fw_dynamic 型固件，入口地址改由 QEMU 动态传入，这也是原框架 Makefile 在新版 QEMU 上无法启动内核的原因：原框架用 `-device loader` 把镜像复制进内存，不会向 QEMU 登记入口地址，OpenSBI 拿到的 next_addr 为 0。我们因此把 Makefile 中 `qemu` 和 `debug` 两个目标改为 `-kernel bin/kernel`，由 QEMU 按 ELF 装载内核并传入入口地址，新旧版本的 QEMU 都能正常启动。
 
 
 
@@ -231,7 +261,7 @@ QEMU 8.2.2 自带的是 OpenSBI v1.3（banner 第一行）。我们从官方仓�
 
 ![用带符号的 OpenSBI 跟踪初始化](./images/T2-5-opensbi-symbols.png)
 
-<center>图 4　带符号的 OpenSBI：sbi_hart_init 的调用栈，以及交接函数 sbi_hart_switch_mode 的参数</center>
+<p align="center">图 4　带符号的 OpenSBI：sbi_hart_init 的调用栈，以及交接函数 sbi_hart_switch_mode 的参数</p>
 
 `sbi_hart_switch_mode` 的参数就是交接信息：`arg0 = 0`（hart 编号）、`arg1 = 2279604224`（即 0x87e00000，设备树地址）、`next_addr = 0x80200000`、`next_mode = 1`（S 态），与 MROM 通过 `fw_dynamic_info` 传入的内容一致。
 
@@ -293,7 +323,7 @@ mret#7 @0x8000aec8 : mepc=0x80200000 MPP=1 mcause=0x3 mtval=0
 
 ![在交接的 mret 处断下，执行后进入 S 态的 kern_entry](./images/T2-2-mret-to-kernel.png)
 
-<center>图 5　OpenSBI 通过 mret 把控制权交给内核（左栏为此时已打印的 OpenSBI banner）</center>
+<p align="center">图 5　OpenSBI 通过 mret 把控制权交给内核（左栏为此时已打印的 OpenSBI banner）</p>
 
 右栏自上而下可以看到交接的全过程：
 
@@ -311,7 +341,7 @@ mret#7 @0x8000aec8 : mepc=0x80200000 MPP=1 mcause=0x3 mtval=0
 
 ![watch 实验：watchpoint 从未触发](./images/T2-3-watch.png)
 
-<center>图 6　在 0x1000 处设置 watchpoint，运行后只命中了内核入口的断点</center>
+<p align="center">图 6　在 0x1000 处设置 watchpoint，运行后只命中了内核入口的断点</p>
 
 GDB 停在 0x1000 时，0x80200000 处已经是 `kern_entry` 的指令；设置硬件 watchpoint 后继续运行，直接命中了内核入口的断点，watchpoint 从未被触发。
 
@@ -333,7 +363,7 @@ GDB 停在 0x1000 时，0x80200000 处已经是 `kern_entry` 的指令；设置�
 
 ![内核通过 ecall 陷入 OpenSBI 请求输出字符](./images/T2-4-ecall.png)
 
-<center>图 7　内核第一次调用 SBI：S 态 ecall 陷入 M 态，处理完成后返回</center>
+<p align="center">图 7　内核第一次调用 SBI：S 态 ecall 陷入 M 态，处理完成后返回</p>
 
 - 断下时 CPU 处于 S 态，`a7 = 1` 是 SBI 调用号 `SBI_CONSOLE_PUTCHAR`，`a0 = 0x28` 是要输出的字符 `(`，也就是 `(THU.CST) os is loading ...` 的第一个字符。
 - 执行 `ecall` 后，PC 跳到 `mtvec` 指向的 0x80000428（OpenSBI 的陷阱入口），特权级变为 M 态，`mcause = 9` 表示“来自 S 态的 ecall”，`mepc` 记录了 ecall 的地址，以便返回。
@@ -345,7 +375,7 @@ GDB 停在 0x1000 时，0x80200000 处已经是 `kern_entry` 的指令；设置�
 
 ![带符号的 OpenSBI 中，ecall 的完整处理链](./images/T2-6-ecall-chain.png)
 
-<center>图 8　内核的 ecall 在 OpenSBI 内部的处理链，最终由 uart8250_putc 写出字符 '('</center>
+<p align="center">图 8　内核的 ecall 在 OpenSBI 内部的处理链，最终由 uart8250_putc 写出字符 '('</p>
 
 调用栈自下而上依次是：
 
@@ -397,7 +427,7 @@ BASE_ADDRESS = 0x80200000;
 
 ![lyp本机内核符号表](./images/T3-symbols.jpg)
 
-<center>图 9　kern_entry、启动栈和数据边界的符号地址</center>
+<p align="center">图 9　kern_entry、启动栈和数据边界的符号地址</p>
 
 `bootstacktop` 和 `SBI_CONSOLE_PUTCHAR` 同为 `0x80203000`，看起来像栈与变量重叠，实际没有冲突：前者是栈区域结束的标签，栈不包含这一边界字节，后者从这里开始占用空间。
 
@@ -407,7 +437,7 @@ BASE_ADDRESS = 0x80200000;
 
 ![lyp本机ELF程序头](./images/T3-elf-layout.jpg)
 
-<center>图 10　ELF 入口和两个 LOAD 段的装载范围</center>
+<p align="center">图 10　ELF 入口和两个 LOAD 段的装载范围</p>
 
 图中第一行入口为 `0x80200000`，两个 LOAD 段分别对应代码／只读数据和可写数据。程序头中的 `FileSiz/MemSiz` 本次相同，也与没有非空 BSS 的结果相符。
 
@@ -492,7 +522,7 @@ uint64_t sbi_call(uint64_t sbi_type, uint64_t arg0, uint64_t arg1, uint64_t arg2
 
 ![lyp本机SBI陷入与返回](./images/T3-ecall-step.jpg)
 
-<center>图 11　字符输出时 S→M→S 的 GDB 批处理输出（QEMU 6.2.0 / OpenSBI v0.9）</center>
+<p align="center">图 11　字符输出时 S→M→S 的 GDB 批处理输出（QEMU 6.2.0 / OpenSBI v0.9）</p>
 
 图中 `a7=1`、`a0=0x28`，表示请求输出字符 `(`。单步后 `priv` 从1变成3，`mcause=9`，`mepc` 记录 `0x80200492`，PC 到达 `mtvec` 指向的 `0x80000520`。返回内核时 PC 为 `0x80200496`，`priv` 又变成1。这组寄存器变化对应了一次完整的固件调用。
 
@@ -626,14 +656,69 @@ Domain0 Next Mode         : S-mode
 
 
 
-> **【待补】拓展：现代笔记本的启动流程（T6，nagilix）** <!-- fill:T6-*extend*.md -->
+## 拓展：现代笔记本与 RISC-V 启动流程对比
+
+本节以现代 x86/ARM 笔记本体系为对照标杆，深度剖析现代计算机从加电到操作系统接管的完整生命周期，并与练习 2 第五节总结的 RISC-V 真实硬件启动链（`ROM -> U-Boot SPL -> OpenSBI -> U-Boot -> Kernel`）进行横向对比分析。
+
+### 现代 x86 笔记本的启动流程（UEFI）
+现代 x86 体系（Intel/AMD 平台）已彻底淘汰传统 Legacy BIOS，严格遵循 UEFI 规范标准。其引导时序可划分为五个离散的逻辑阶段：
+
+1. **SEC (Security) 阶段**：
+   - 物理加电复位后，CPU 执行主板 SPI Flash ROM 中的只读初始化代码。
+   - 此时物理内存（DRAM）尚未完成标定与时序训练，CPU 将内部 L1/L2 缓存配置为 **CAR (Cache-As-RAM)** 临时内存堆栈。
+   - 确立系统的可信根（Root of Trust），校验后续阶段固件模块的公钥证书与签名。
+2. **PEI (Pre-EFI Initialization) 阶段**：
+   - 调度执行 PEI 核心模块（PEIM），完成芯片组、电源管理、系统时钟等基础硬件的标定。
+   - 驱动内存控制器完成 DRAM 物理内存的通道扫描与时序训练，彻底激活物理内存。
+   - 将已探测的硬件资源状态抽象封装为 **HOB (Hand-Off Block)** 数据结构列表，传递给下一阶段。
+3. **DXE (Driver Execution Environment) 阶段**：
+   - 在全量可用的物理内存中构建软硬件调度总线。
+   - 并行调度加载数十至上百个 DXE 驱动（PCIe 总线、NVMe 固态存储、USB 控制器、图形 GOP 模块等），构建起 UEFI 运行时服务（Runtime Services）与引导服务（Boot Services）。
+4. **BDS (Boot Device Selection) 阶段**：
+   - 读取主板 NVRAM 中保存的启动项优先级策略。
+   - 挂载 EFI 系统分区（ESP, FAT32 格式），检索引导文件。
+5. **OS Loader 与内核接管**：
+   - 加载操作系统的 EFI 引导加载器（如 Windows 的 `bootmgfw.efi` 或 Linux 的 `grubx64.efi`），校验 Secure Boot 签名。
+   - 引导程序将内核镜像与 initramfs 装载入内存后，调用 UEFI 核心服务 `ExitBootServices()`。调用之后，UEFI 引导阶段临时占用的内存被彻底回收释放，硬件控制权完全移交操作系统内核（Ring 0）。
+
+
+### 三种架构启动阶段的对照
+
+将现代笔记本（x86 UEFI 与 ARM TF-A）的启动拓扑与练习 2 中总结的 RISC-V 真实硬件启动链进行对照：
+
+| 引导阶段职责 | RISC-V 真机启动链 | 现代 x86 UEFI 笔记本 | 现代 ARM64 笔记本 (TF-A) |
+| :--- | :--- | :--- | :--- |
+| **阶段 1：物理根固件 (No-DRAM)** | **MaskROM** (芯片内部固化) | **SEC 阶段** (Flash ROM / CAR 模式) | **BL1 (MaskROM, EL3)** |
+| **阶段 2：硬件标定与内存初始化** | **U-Boot SPL** (片内 SRAM 运行) | **PEI 阶段** (Memory Training) | **BL2 (S-EL1 / EL3)** |
+| **阶段 3：底层特权级运行时监视器** | **OpenSBI** (常驻 M-Mode) | **SMM (System Management Mode)** | **BL31 (TF-A Monitor, EL3)** |
+| **阶段 4：富外设驱动与系统引导** | **U-Boot (Full)** (运行于 S-Mode) | **DXE + BDS 阶段** | **BL33 (EDK2 / U-Boot, EL2)** |
+| **阶段 5：操作系统内核接管** | **Kernel (uCore/Linux)** (S-Mode) | **OS Kernel (Linux/NT)** (Ring 0) | **OS Kernel (Linux/XNU)** (EL1) |
+| **运行期服务请求通道** | **SBI 调用** (`ecall` 陷入 M 态) | **SMI 中断 / UEFI Runtime** | **SMC 调用** (Secure Monitor Call) |
+
+
+### 共同的设计思路
+通过跨架构对比，可以提炼出计算系统底层固件设计的普适性工业哲学：
+1. **最小依赖原则（渐进式引导）**：无论是 x86 的 CAR 技术、ARM 的片内 SRAM 还是 RISC-V 的 SPL，初期都严格受限于物理硬件未激活状态，必须以“最小依赖”逐级点亮 DRAM 内存，再承载高层复杂驱动。
+2. **特权级降级收敛与安全解耦**：最高特权级（M-Mode / EL3 / Ring -2 SMM）仅常驻精炼的硬件抽象与安全监控服务（如 OpenSBI、BL31）；富设备驱动与复杂加载逻辑下放至降权环境运行，最终将全部硬件资源无损交付给 OS 内核。
 
 
 
 
 # 五、测试与验证
 
-> **【待补】make qemu 运行截图（T6，nagilix）** <!-- fill:T6-*test*.md -->
+## make qemu 运行验证
+
+**验证人**：2413074-刘昀皓
+
+**环境**：WSL2 Ubuntu 22.04，QEMU 7.0.0（自带 OpenSBI v1.0）。在 `code/` 目录下执行 `make clean && make qemu`。
+
+QEMU 启动后，CPU 先执行复位代码，再跳到 OpenSBI。OpenSBI 在 M 态完成平台初始化、配置 PMP 内存保护之后，按 QEMU 传入的启动信息（`Next Address = 0x80200000`，`Next Mode = S-mode`）执行 `mret`，切换到 S 态并跳到内核入口。内核执行 `kern_init`，通过 SBI 的字符输出服务在终端打印出加载信息，随后进入死循环，所以 QEMU 会一直运行，需要按 `Ctrl+A` 再按 `X` 退出。
+
+![make qemu 运行截图](./images/T6-qemu-run.png)
+
+<p align="center">图 12　make qemu 的运行结果（QEMU 7.0.0 / OpenSBI v1.0）</p>
+
+截图中可以看到 OpenSBI 打印的平台信息，其中 `Domain0 Next Address` 为 `0x0000000080200000`、`Next Mode` 为 `S-mode`，最后一行是内核输出的 `(THU.CST) os is loading ...`，说明内核已经在 S 态正常运行。
 
 
 
@@ -675,4 +760,21 @@ Domain0 Next Mode         : S-mode
 本节依据当前 `init.c`、`entry.S`、`console.c`、`kernel.ld` 以及T1—T3的分析。最终提示词见 prompt.md。
 
 
-> **【待补】AI 协作开发的经验（T6，nagilix 起草，全员补充）** <!-- fill:T6-*summary*.md -->
+## 实验收获
+
+### 启动流程与系统架构
+通过 Lab 1 的全流程实践，本小组系统性地打通了 RISC-V 体系架构下操作系统启动的微观硬件行为与宏观软件分层逻辑：
+1. **固件与操作系统内核的交接边界**：从加电复位地址 `0x1000` 到 OpenSBI 的 `0x80000000`，再到操作系统入口 `0x80200000`，团队通过 GDB 指令级跟踪彻底厘清了 CPU 特权级（M 态至 S 态）由 `mret` 触发的降权跃迁过程，以及核心参数（`a0` Hart ID、`a1` DTB 地址）的传递约定。
+2. **硬件模拟与真实物理系统的映射**：明确了 QEMU `-kernel` 机制直接注入 ELF 镜像的快捷特性，同时通过拓展题横向推导，对齐了真实硬件环境（MaskROM -> U-Boot SPL -> OpenSBI -> U-Boot -> Kernel）与现代 x86 UEFI / ARM TF-A 的引导链路，提炼出固件“最小依赖渐进引导”与“特权级降级收敛”的通用设计模式。
+3. **特权服务代理机制**：加深了对 SBI 规范的认知。内核在 S 态通过 `ecall` 请求 M 态 OpenSBI 代为执行串口字符打印等底层敏感操作，实现了平台相关性与操作系统核心逻辑的优雅解耦。
+
+### 分工协作
+本实验全面推行基于 `.handoff` 任务切片与模块化合并的团队协同流：
+1. **接口与文件锁契约**：团队严格恪守“各任务仅操作自身名下文件”的原则，报告采用独立 section 分拆撰写，图片统一在 `report/images/` 归档并使用 `../images/` 相对路径引用，规避了多人同时编辑同一大文件时的 Git 合并冲突。
+2. **多版本兼容性考量**：三位成员分别使用 QEMU 6.2、7.0 和 8.2，面对不同版本的环境时，团队及时通过参数重构与实测印证，确保了构建链与调试链的健壮性。
+
+## AI 协作开发的经验
+
+在借助 AI 工具（Claude Code、Codex、Claude 和 DeepSeek 的网页对话等）进行工程推进与文档整理的过程中，团队达成了高度一致的人机协同共识：
+- **人类主导逻辑审查，防范底层时序幻觉**：大语言模型在处理底层体系结构细节（如 CSR 寄存器自动更新时序、栈顶符号地址绑定）时存在潜在的语义泛化偏差。团队坚持以官方硬件手册（*RISC-V Privileged Architecture Manual*）与真实 GDB 寄存器倾倒数据为唯一检验标准，避免盲目采纳未经求证的代码与论述。
+- **结构化 Prompt 驱动**：采用指导书推行的标准四段式结构，将可信上下文（`[RELY]`）与验收标准（`[GUARANTEE]`）严格限定在最小必要范围内，显著提升了 Agent 产出物的精度与工程契合度。

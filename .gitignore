@@ -4,3 +4,4 @@ obj/
 .qemu.out
 .claude/tools/
 reference/
+report/*.pdf

@@ -16,7 +16,7 @@ RISC-V 有三个常用的特权级：**M 态**（Machine）权限最高，可以
 
 ![启动流程与物理内存布局](../images/T2-0-boot-overview.png)
 
-<center>图 2-1　lab1 的启动流程与物理内存布局</center>
+<p align="center">图 2-1　lab1 的启动流程与物理内存布局</p>
 
 调试环境为 WSL Ubuntu，QEMU 8.2.2（自带 OpenSBI v1.3），GDB 使用 `riscv64-unknown-elf-gdb`。
 
@@ -28,7 +28,7 @@ GDB 连上之后，先确认 CPU 的初始状态，再反汇编 PC 处的指令�
 
 ![GDB 连接后停在 0x1000](../images/T2-1-reset-0x1000.png)
 
-<center>图 2-2　复位后的第一条指令位于 0x1000，CPU 处于 M 态</center>
+<p align="center">图 2-2　复位后的第一条指令位于 0x1000，CPU 处于 M 态</p>
 
 `priv` 为 3，表示 CPU 处于 M 态；PC 是 0x1000，这里只有 6 条指令。逐条单步并观察寄存器，各条指令的作用如下：
 
@@ -45,7 +45,7 @@ GDB 连上之后，先确认 CPU 的初始状态，再反汇编 PC 处的指令�
 
 图中最后一条命令 `x/2i 0x80200000` 显示，**此时内核的第一条指令已经在 0x80200000 了**，而 CPU 一条指令都还没有执行。这个现象在第五节会进一步讨论。
 
-> **版本差异**：在课程推荐的 QEMU 4.1 中（见其源码 `hw/riscv/virt.c`），复位代码只有 5 条指令，不设置 a2；配套的 OpenSBI 是 fw_jump 型，下一阶段地址在编译时就固定为 0x80200000，不需要 QEMU 传参。新版 QEMU 改用 fw_dynamic 型固件，入口地址改由 QEMU 动态传入，这也是原框架 Makefile 在新版 QEMU 上无法启动内核的原因（见「对实验框架的修改」一节）。
+> **版本差异**：在课程推荐的 QEMU 4.1 中（见其源码 `hw/riscv/virt.c`），复位代码只有 5 条指令，不设置 a2；配套的 OpenSBI 是 fw_jump 型，下一阶段地址在编译时就固定为 0x80200000，不需要 QEMU 传参。新版 QEMU 改用 fw_dynamic 型固件，入口地址改由 QEMU 动态传入，这也是原框架 Makefile 在新版 QEMU 上无法启动内核的原因：原框架用 `-device loader` 把镜像复制进内存，不会向 QEMU 登记入口地址，OpenSBI 拿到的 next_addr 为 0。我们因此把 Makefile 中 `qemu` 和 `debug` 两个目标改为 `-kernel bin/kernel`，由 QEMU 按 ELF 装载内核并传入入口地址，新旧版本的 QEMU 都能正常启动。
 
 
 
@@ -73,7 +73,7 @@ QEMU 8.2.2 自带的是 OpenSBI v1.3（banner 第一行）。我们从官方仓�
 
 ![用带符号的 OpenSBI 跟踪初始化](../images/T2-5-opensbi-symbols.png)
 
-<center>图 2-3　带符号的 OpenSBI：sbi_hart_init 的调用栈，以及交接函数 sbi_hart_switch_mode 的参数</center>
+<p align="center">图 2-3　带符号的 OpenSBI：sbi_hart_init 的调用栈，以及交接函数 sbi_hart_switch_mode 的参数</p>
 
 `sbi_hart_switch_mode` 的参数就是交接信息：`arg0 = 0`（hart 编号）、`arg1 = 2279604224`（即 0x87e00000，设备树地址）、`next_addr = 0x80200000`、`next_mode = 1`（S 态），与 MROM 通过 `fw_dynamic_info` 传入的内容一致。
 
@@ -135,7 +135,7 @@ mret#7 @0x8000aec8 : mepc=0x80200000 MPP=1 mcause=0x3 mtval=0
 
 ![在交接的 mret 处断下，执行后进入 S 态的 kern_entry](../images/T2-2-mret-to-kernel.png)
 
-<center>图 2-4　OpenSBI 通过 mret 把控制权交给内核（左栏为此时已打印的 OpenSBI banner）</center>
+<p align="center">图 2-4　OpenSBI 通过 mret 把控制权交给内核（左栏为此时已打印的 OpenSBI banner）</p>
 
 右栏自上而下可以看到交接的全过程：
 
@@ -153,7 +153,7 @@ mret#7 @0x8000aec8 : mepc=0x80200000 MPP=1 mcause=0x3 mtval=0
 
 ![watch 实验：watchpoint 从未触发](../images/T2-3-watch.png)
 
-<center>图 2-5　在 0x1000 处设置 watchpoint，运行后只命中了内核入口的断点</center>
+<p align="center">图 2-5　在 0x1000 处设置 watchpoint，运行后只命中了内核入口的断点</p>
 
 GDB 停在 0x1000 时，0x80200000 处已经是 `kern_entry` 的指令；设置硬件 watchpoint 后继续运行，直接命中了内核入口的断点，watchpoint 从未被触发。
 
@@ -175,7 +175,7 @@ GDB 停在 0x1000 时，0x80200000 处已经是 `kern_entry` 的指令；设置�
 
 ![内核通过 ecall 陷入 OpenSBI 请求输出字符](../images/T2-4-ecall.png)
 
-<center>图 2-6　内核第一次调用 SBI：S 态 ecall 陷入 M 态，处理完成后返回</center>
+<p align="center">图 2-6　内核第一次调用 SBI：S 态 ecall 陷入 M 态，处理完成后返回</p>
 
 - 断下时 CPU 处于 S 态，`a7 = 1` 是 SBI 调用号 `SBI_CONSOLE_PUTCHAR`，`a0 = 0x28` 是要输出的字符 `(`，也就是 `(THU.CST) os is loading ...` 的第一个字符。
 - 执行 `ecall` 后，PC 跳到 `mtvec` 指向的 0x80000428（OpenSBI 的陷阱入口），特权级变为 M 态，`mcause = 9` 表示“来自 S 态的 ecall”，`mepc` 记录了 ecall 的地址，以便返回。
@@ -187,7 +187,7 @@ GDB 停在 0x1000 时，0x80200000 处已经是 `kern_entry` 的指令；设置�
 
 ![带符号的 OpenSBI 中，ecall 的完整处理链](../images/T2-6-ecall-chain.png)
 
-<center>图 2-7　内核的 ecall 在 OpenSBI 内部的处理链，最终由 uart8250_putc 写出字符 '('</center>
+<p align="center">图 2-7　内核的 ecall 在 OpenSBI 内部的处理链，最终由 uart8250_putc 写出字符 '('</p>
 
 调用栈自下而上依次是：
 

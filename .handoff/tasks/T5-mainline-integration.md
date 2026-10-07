@@ -1,5 +1,5 @@
 # T5 整体逻辑主线与集成
-- 负责人：openfar    状态：进行中    依赖：T1–T4, T6
+- 负责人：openfar    状态：完成    依赖：T1–T4, T6
 - 可改文件：report/sections/T5-*.md, report/report.md, report/prompt.md
 
 ## 要求
@@ -9,7 +9,8 @@
 ## 当前进度 / 下一步
 - 已完成：整体逻辑主线 report/sections/T5-mainline.md 及其提示词 T5-mainline.prompt.md。
 - 已生成 report.md / prompt.md **草稿**（合并 T0–T5），T6 的 5 个部分用“【待补】”占位。T6 提交后重新运行合并脚本，再做终审。
-- 下一步：等 T6；终审时检查各 section 之间的说法是否一致、图片是否显示正常、全文风格是否统一。
+- 2026-10-07：T6 已用 merge-report.py --fill 填入，全文 12 张图编号连续，无【待补】。终审修正：去掉对已删除章节「对实验框架的修改」的 3 处引用（把 Makefile 改动并入练习 2 的“版本差异”说明），图题全部改为 <p align="center">。
+- 待办：李云鹏的 AI 模型待确认（环境表中标为“待确认”）；report.pdf 只作本地预览，已移出 git。
 
 ## 关键决策与结论
 - 报告结构按 report-template.md：一 目的(T6) / 二 环境(T6) / 三 整体逻辑(T5) / 四 实验内容(T1→T2→T3→T0→T6 拓展) / 五 测试(T6) / 六 总结(T4 + T6)。

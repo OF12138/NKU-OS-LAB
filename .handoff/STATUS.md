@@ -11,12 +11,12 @@
 | T2 | 练习2：用 GDB 跟踪 0x1000 → OpenSBI → 0x80200000 | openfar | 完成 | report/sections/T2-*.md, report/images/T2-* |
 | T3 | 核心模块理解：链接脚本与内存布局、SBI→cprintf 输出链、构建流程 | lyp | 完成 | report/sections/T3-*.md |
 | T4 | 知识点对照：实验与 OS 原理的对应，以及原理中本实验未覆盖的知识点 | lyp | 完成 | report/sections/T4-*.md |
-| T5 | 整体逻辑主线 + 集成（合并 report.md 和 prompt.md） | openfar | 进行中 | report/sections/T5-*.md, report/report.md, report/prompt.md |
+| T5 | 整体逻辑主线 + 集成（合并 report.md 和 prompt.md） | openfar | 完成 | report/sections/T5-*.md, report/report.md, report/prompt.md |
 | T6 | 实验目的、实验环境表、make qemu 运行截图、拓展（现代笔记本启动流程）、实验总结 | nagilix | 完成 | report/sections/T6-*.md, report/images/T6-* |
 | T7 | 答辩准备：每人都要能回答问题清单中的全部问题 | 全员 | 待开始 | .handoff/tasks/T7-defense.md（各改自己的小节） |
 
 ## 集成状态
-- make qemu ✅（QEMU 8.2.2）   make grade 不适用   report.md 草稿（缺 T6）   prompt.md 草稿（缺 T6）
+- make qemu ✅（QEMU 8.2.2）   make grade 不适用   report.md 已合并 ✅（AI 工具表中李云鹏的模型待确认）   prompt.md 已合并 ✅
 
 ## 全组须知
 1. **QEMU 启动方式已修改（T0）**：`make qemu` / `make debug` 改为用 `-kernel bin/kernel` 加载 ELF，在 QEMU 8.2 上已验证，按源码分析 4.1.x 也兼容。先 pull 最新代码，然后照常运行 `make qemu` 即可。如果你的 QEMU 版本上出现问题，请在 T0 的留言区注明版本和现象。另外，`make debug` / `make gdb` 新增了可选参数 `OPENSBI=<fw_dynamic.elf>`，可以换上自己编译的带符号 OpenSBI，方便调试（见 T2 报告 3.1 节）。

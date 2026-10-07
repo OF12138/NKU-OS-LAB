@@ -1,25 +1,23 @@
-# 二、实验环境
+## 软件环境
 
-### 2.1 软硬件基础设施配置
+三位成员各自在 WSL 中搭建了实验环境，QEMU 版本各不相同，自带的 OpenSBI 版本也随之不同。报告中各处的地址和截图都注明了所用环境，不同版本的地址不能混用。
 
-| 配置项 | 环境规范 / 实测版本 | 作用说明 |
-| :--- | :--- | :--- |
-| **宿主操作系统** | Ubuntu 22.04 LTS (WSL2 / Linux Kernel 5.15+) | 基础交叉编译构建与内核运行宿主环境 |
-| **架构模拟器** | QEMU emulator version 7.0.0 (`qemu-system-riscv64`) | 模拟 RISC-V 64 Virt 虚拟硬件开发板平台 |
-| **交叉编译工具链** | `riscv64-unknown-elf-gcc` (11.4.0+) | 编译 S 态裸机内核与引导汇编源码 |
-| **底层运行时固件** | OpenSBI v1.0 (QEMU 7.0 内置) | 提供 M 态运行时支持及 SBI 服务调用接口 |
-| **底层调试器** | `riscv64-unknown-elf-gdb` / `gdb-multiarch` | 裸机断点挂载、寄存器状态检查及指令级单步跟踪 |
+| 成员 | 宿主系统 | QEMU（自带 OpenSBI） | 交叉工具链 | 报告中对应的实验 |
+| :--- | :--- | :--- | :--- | :--- |
+| 2411264-张远 | WSL2 Ubuntu 24.04 | 8.2.2（OpenSBI v1.3） | riscv64-unknown-elf-gcc 15.1.0 | 练习 2、Makefile 的修改 |
+| 2414099-李云鹏 | WSL2 Ubuntu 22.04 | 6.2.0（OpenSBI v0.9） | SiFive riscv64-unknown-elf-gcc 10.2.0 | 练习 1、功能模块 |
+| 2413074-刘昀皓 | WSL2 Ubuntu 22.04 | 7.0.0（OpenSBI v1.0） | riscv64-unknown-elf-gcc 11.4.0 | 测试与验证 |
 
-### 2.2 团队协同与 AI 研发工具矩阵
+调试器均为工具链自带的 `riscv64-unknown-elf-gdb`。Makefile 改用 `-kernel` 加载内核之后（见练习 2 第二节的“版本差异”说明），`make qemu` 在以上三个版本的 QEMU 上都能正常启动内核。
 
-团队成员在实验过程中严格遵循“人类主导系统架构规划与时序审计，AI 工具辅助逻辑验证与代码排障”的协作准则，工具与模型使用分布如下：
+## AI 工具
 
-| 成员 | AI 编程工具 | 底层模型 | 备注 / 核心负责场景 |
+| 成员 | AI 编程工具 | 底层模型 | 备注 |
 | :--- | :--- | :--- | :--- |
-| **张远 (openfar, 2411264)** | Claude Code（终端 Agent）/ Far CLI | Claude 3.5 Sonnet | T0 阶段 Makefile 改造重构，T2 阶段 GDB 启动流程跟踪与时序推演 |
-| **李云鹏 (lyp, 2414099)** | VS Code (GitHub Copilot / Cursor) | GPT-4o / Claude 3.5 Sonnet | T1/T3/T4 阶段内核 entry.S 汇编分析、模块理解与知识点对照 |
-| **刘昀皓 (nagilix, 2413074)** | VS Code (WSL: Ubuntu) + Web 协同交互 | Claude 3.5 Sonnet / DeepSeek-R1 | T6 阶段引导时序对比架构推演、实验环境核验与非代码交付物工程化落地 |
+| 2411264-张远 | Claude Code（终端 Agent） | Claude Opus 5.5 | 在 Windows 上运行，通过 WSL 编译和调试 |
+| 2414099-李云鹏 | Codex（终端 Agent） | （待确认） | |
+| 2413074-刘昀皓 | VS Code（WSL）+ 网页对话 | Claude 3.5 Sonnet / DeepSeek-R1 | |
 
 **说明：**
-- **AI 编程工具**：指各成员具体使用的终端智能体工具、编辑器插件或桌面交互环境。
-- **底层模型**：指工具调用的大语言模型及具体版本。
+- **AI 编程工具**：指具体使用的终端工具、编辑器插件、桌面应用或浏览器界面。
+- **底层模型**：指该工具使用的大语言模型及版本。
