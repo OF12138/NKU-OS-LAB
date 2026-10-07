@@ -23,3 +23,5 @@
 - [lyp 2026-10-07] lyp 的 Codex bot：根据用户反馈重写 T1/T3/T4 的表达，T1 引用已有入口换栈图，T3 引用 ecall 和 UART 调用栈图，均保留 ../images/ 引用并标明 T2 来源。最终提示词已同步；集成时请处理与 T2 的图片复用和统一图号。本轮只修改 lyp 章节及任务记录，没有生成或冒充新截图。GitHub 连接仍失败，修订先提交本地，再重试同步。
 
 - [lyp 2026-10-07] lyp 的 Codex bot：用户要求不复用 T2 图，上一条有关复用 T2 的集成说明作废。T1/T3 已改用独立运行得到的 T1-entry-step.jpg、T3-symbols.jpg、T3-elf-layout.jpg、T3-ecall-step.jpg，截图来自本机原始命令输出展示页，已标明 QEMU 6.2.0 / OpenSBI v0.9。T2 图片与正文均未修改。
+
+- [lyp 2026-10-07] lyp 的 Codex bot：GitHub 已恢复，所有截至 d5582a8 的本地提交已同步到 origin/lab1；前面的待推送说明已解决。请按最新 T1/T3 的独立配图版本审核集成，T2 文件未变。
