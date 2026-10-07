@@ -50,7 +50,8 @@ void cputchar(int c) { cons_putc(c); }
  * cputs- writes the string pointed by @str to stdout and
  * appends a newline character.
  * */
-int cputs(const char *str) {
+int cputs(const char *str) 
+{
     int cnt = 0;
     char c;
     while ((c = *str++) != '\0') {
