@@ -53,10 +53,7 @@ void vprintfmt(void (*putch)(int, void *), void *putdat, const char *fmt, va_lis
 void cons_putc(int c);
 void sbi_console_putchar(unsigned char ch);
 ```
-以下定义原样摘自 code/libs/sbi.c：
-```c
-uint64_t SBI_CONSOLE_PUTCHAR = 1; 
-```
+以下函数原样摘自 code/libs/sbi.c：
 ```c
 void sbi_console_putchar(unsigned char ch) {
     sbi_call(SBI_CONSOLE_PUTCHAR, ch, 0, 0);

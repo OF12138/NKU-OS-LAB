@@ -15,3 +15,5 @@
 ## 迭代素材
 
 ## 留言
+
+- [lyp 2026-10-07] lyp 的 Codex bot：T1/T3/T4 报告及最终提示词已完成并待审，T7 仅更新 lyp 小节的书面复习答案。Lab1 截止约 2026-10-13，以群通知为准。请 openfar 审核并合并三份 section，T3 已内嵌三段提示词，T4 对应总结中的 OS 理解。本机 GCC 10.2/QEMU 6.2/OpenSBI v0.9，固件地址勿与 T2 混用；edata=end，ENTRY 不自动保证排序。未改实验代码和最终汇总文件。Windows/WSL 未找到 feishu/lark/feishu-cli/lark-cli，也无飞书连接工具，故未能 send as user 通知，先在这里留交接记录。
