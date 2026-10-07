@@ -70,4 +70,36 @@
 
 ### nagilix
 
+- 2026-10-07：基于 T6（实验目的/环境/运行截图/拓展题对比/总结初稿）的交付成果与实测验证，已完成全部 18 道答辩考点的穿透式复习。本机 QEMU 7.0.0 与 WSL2 交叉编译链验证闭环。以下为结合底层时序与体系架构对比的核心回答要点：
+
+1. **复位地址与传参契约**：加电复位命中 MROM 基址 0x1000（M 态），执行 6 条复位指令配置 a0（Hart ID）、a1（DTB 设备树基址）及 a2（fw_dynamic_info 指针），随后 jr 跳转至 0x80000000 的 OpenSBI。相比旧版 QEMU 4.1 的 5 条硬编码指令，新版通过 a2 动态传递 next_addr 与 next_mode。
+2. **OpenSBI 的职责边界**：常驻最高特权级（M 态）的硬件抽象固件。核心完成 CPU 核心探测（非法指令异常试探 CSR）、PMP 物理内存保护表项配置、串口控制台初始化，并在交接时通过 mret 降级，内核运行期提供 SBI 调用代理。
+3. **特权级降级交接**：OpenSBI 执行 sbi_hart_switch_mode()，将 mepc 赋值为内核入口 0x80200000，将 mstatus.MPP 位域配置为 1（S 态），最后通过原子指令 mret 实现硬件强制降权并跳转进 kern_entry。
+4. **内核镜像装载者**：在 QEMU 虚拟仿真中，内核是由 QEMU 模拟器在加电前直接注入内存的（因此 GDB 停在 0x1000 时 0x80200000 已有内核代码，watchpoint 无法捕获写入）；在真机环境下，内核由外设引导器（如 U-Boot）从存储介质读取载入，OpenSBI 本身不具备文件系统和磁盘驱动。
+5. **M/S/U 特权级分层意义**：M 态管理硬件底层与安全监视，S 态运行操作系统内核，U 态运行受限用户进程。分层实现了平台固件（OpenSBI）与通用 OS 的解耦，增强了系统的容错与隔离能力。
+6. **la sp 与内核栈建立**：内核入口第一件事必须是 la sp, bootstacktop。因为在交接瞬间，sp 仍残留为 OpenSBI 的私有栈指针（0x80046eb0），该区域受 PMP 硬件保护，S 态访问会直接触发访问违例故障，必须立即切换为内核自有的引导栈。
+7. **引导栈空间与节属性**：栈大小为 KSTACKSIZE（2 页 = 8KB），范围为 [0x80201000, 0x80203000)，栈底向低地址生长。放在 .data 节而非 .bss 节，是为了防止 kern_init 初始化期间执行 memset 清零 BSS 内存时，将当前正在运行的活动栈帧破坏。
+8. **tail 与函数调用语义**：tail kern_init 属于尾调用优化（auipc + jalr 或 c.j），不占用返回地址寄存器 ra，也不压入新的返回栈帧；配合 __attribute__((noreturn)) 告知编译器内核主函数永不返回。
+9. **BSS 段清零机理**：链接脚本 kernel.ld 定义了 edata（.data 结束）与 end（.bss 结束）符号。kern_init 计算区间并调用 memset 清零，保证未初始化全局变量与静态变量的 C 语言标准零值语义。
+10. **入口地址与链接排序**：链接脚本将 BASE_ADDRESS 设为 0x80200000，且通过链接器输入顺序将 entry.o 置于首位，确保 kern_entry 物理排布在 .text 节的起始地址。ENTRY(kern_entry) 仅用于声明 ELF 头的入口元数据。
+11. **构建产物 ELF 与 BIN 差异**：bin/kernel 为标准 ELF 格式，包含 Program Header、Section Header、符号表与调试信息；bin/ucore.img 是经由 objcopy --strip-all 提取出的纯物理机器码字节流。当前 QEMU -kernel 直接读取并解析 ELF 镜像。
+12. **T0 阶段 Makefile 重构根因**：旧版 -device loader 仅复制原始镜像，新版 QEMU 配套的 fw_dynamic 固件无法感知内核入口（默认为 0）；改为 -kernel 加载 ELF 后，QEMU 能够自动解析 ELF 入口点并构造正确的 fw_dynamic_info 传递给 OpenSBI。
+13. **cprintf 底层调用链**：cprintf -> vcprintf -> vprintfmt -> cputch -> cons_putc -> sbi_console_putchar -> sbi_call -> ecall -> OpenSBI M 态陷入处理 -> UART8250 串口。S 态负责字符串解析与格式化，硬件字符写入委托给固件。
+14. **ecall 陷入时序与委托控制**：S 态 ecall 未在 medeleg 寄存器中委托，执行时硬件产生 mcause=9 异常，将现场 PC 存入 mepc 并陷入 OpenSBI 的 mtvec；OpenSBI 处理完毕后将 mepc 递增 4 并执行 mret 返回。如果该异常被委托给 S 态，内核将陷入自生循环无法借用 M 态服务。
+15. **内核不可使用 libc 的根因**：操作系统内核处于独立（Freestanding）环境，缺乏用户态系统调用支撑、动态链接器及宿主 C 标准库。必须使用 -nostdinc -nostdlib 独立构建，所需格式化输出由内核原生实现的 cprintf 与底层 SBI 接口承载。
+16. **实验与 OS 原理映射与差异**：
+    - 实验的 OpenSBI 对应硬件抽象层（HAL）；
+    - S 态对应 OS 原理中的内核态（Ring 0）；
+    - 启动阶段使用物理连续单栈，不同于原理中的每个进程独立的双栈体系（内核栈/用户栈）；
+    - 当前阶段尚未开启 SV39 页表分页机制，处于物理内存直接寻址状态。
+17. **原理课中本实验未覆盖的核心概念**：动态物理内存页分配（Buddy System）、虚拟内存分页与缺页异常处理（Page Fault）、多进程并发控制与上下文调度（PCB）、用户态进程与标准系统调用、文件系统（VFS）、进程间通信（IPC）。
+18. **GDB 核心调试命令与 QEMU 参数**：
+    - si：单步执行单条机器汇编指令（进入子函数）；
+    - ni：单步执行单条指令（跳过函数调用）；
+    - b：在指定符号或物理/虚拟地址设置断点；
+    - watch：设置硬件监视点，监控内存变量的写/读变化；
+    - x：查看指定内存地址的内容或反汇编（如 x/6i）；
+    - info registers：打印 CPU 当前通用寄存器及特权级状态。
+    - QEMU -s 参数：在 TCP 1234 端口开启 GDB 调试服务器；-S 参数：启动时冻结 CPU 时钟，等待 GDB 发送 continue 指令后再推进指令。
+
 ## 留言
