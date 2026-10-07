@@ -12,6 +12,8 @@
 - 已完成 report/sections/T1-ex1-entry.md 与同名 .prompt.md，覆盖练习1两条指令、栈大小/对齐、.data/BSS、tail/call/noreturn 与真实反汇编。
 - 状态：待审。下一步由 openfar 审核并合并；lyp 本人按 T7 书面要点练习口述。
 
+- Git 交付：053629d（首批提示词/验证进展）已推送；c90afcc（最终报告/T7）已提交，但 GitHub 443 连接连续失败，尚未推送。下一步网络恢复后先 git pull --rebase，再 git push，之后由 openfar 审核集成。
+
 ## 关键决策与结论
 
 - la 加载地址，最终 auipc sp,0x3 + addi sp,sp,0；tail 在 entry.o 为 auipc/jalr x0，最终松弛为 c.j，跳转前后 ra 不变。

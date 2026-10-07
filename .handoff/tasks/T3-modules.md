@@ -11,6 +11,8 @@
 - 已完成 report/sections/T3-modules.md 的链接布局、输出链和构建三模块，三个最终提示词已内嵌并同步到 .prompt.md。
 - 状态：待审。下一步由 openfar 审核，按功能模块合并入 report.md；提示词合并入 prompt.md。
 
+- Git 交付：053629d（首批提示词/验证进展）已推送；c90afcc（最终报告/T7）已提交，但 GitHub 443 连接连续失败，尚未推送。下一步网络恢复后先 git pull --rebase，再 git push，之后由 openfar 审核集成。
+
 ## 关键决策与结论
 
 - 当前 entry.S 使用普通 .text；entry.o 的链接输入顺序决定入口在首部，ENTRY 只设置 ELF 入口，不自动排序。
