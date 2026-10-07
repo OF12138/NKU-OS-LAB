@@ -43,10 +43,12 @@
 
 ## 集成工具
 
-* `python .claude/tools/merge-report.py [完成日期]`：按模板顺序把 report/sections/ 合并成 report.md 和 prompt.md，图片路径改成 `./images/`，图号按出现顺序统一编号，指向 prompt 文件的相对链接改为纯文本，缺失的 section 用“【待补】”占位。新 lab 要按该 lab 的 section 名调整脚本中的 `parts`。
+* `python .claude/tools/merge-report.py --init [完成日期]`：首次按模板顺序把 report/sections/ 合并成 report.md 和 prompt.md。图片路径改成 `./images/`，图号按出现顺序统一编号，指向 prompt 文件的相对链接改为纯文本，缺失的 section 用带隐藏标记的“【待补】”占位。report.md 已存在时拒绝执行；**不要加 `--force`**，lab1 曾因此覆盖了用户正在修改的内容。新 lab 要按该 lab 的 section 名调整脚本中的 `init()`。
+* `python .claude/tools/merge-report.py --fill`：只把已提交的 section 填进“【待补】”占位处，其余文字不动，然后重新编号全文图号；prompt.md 只追加尚未收录的提示词。
 * `python .claude/tools/check-rely.py`：逐行检查各提示词 [RELY] 中的代码是否仍在 code/ 中（比较时忽略注释），标注“修改前”的引文会跳过。
 
 ## 报告写法
 
 * 动笔前先参考 `reference/` 中前辈的同类报告，防止偏题或掉坑；只能参考，不能抄袭。
-* 图片插在相关文字中间，不要集中放在末尾；每张图下面写图题（`<center>图 x-y　……</center>`）。
+* 图片插在相关文字中间，不要集中放在末尾；每张图下面写图题 `<p align="center">图 x-y　……</p>`。**不要用 `<center>`**：GitHub 会删掉这个标签，导致不居中；`align="center"` 在 GitHub 和 Typora 上都有效。
+* **report.md 由用户亲自修改。** 用户改它期间，不运行任何会写 report.md 的脚本；之后补内容只用 `merge-report.py --fill`，运行前先 `git status` 确认 report.md 没有未提交的修改，有就先停下来问用户。
