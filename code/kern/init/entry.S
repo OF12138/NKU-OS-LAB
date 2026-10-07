@@ -28,6 +28,10 @@ kern_entry: # This is one label and in assembly it will be replaced by specific 
     # note that this is the first thing after .text so its addr is 0x80200000
     la sp, bootstacktop # la 是 load address（加载地址） 伪指令，意思是把标签 bootstacktop 的地址放进寄存器 sp。
 
+    # 为什么要我们自己做
+    # C 语言需要栈，而编译器默认 sp 已经可用。 编译出的 C 代码一进函数就会 addi sp, sp, -N 并存取局部变量和返回地址，这些都依赖 sp 指向一块可写的合法内存。
+    # 没有人替我们保证 sp 的状态。
+
     # @ tail 是尾调用伪指令，相当于 jal x0, kern_init，即跳过去，不保存返回地址。
     # @ 用 tail 而不是 call，是因为 kern_init 永远不会返回（init.c 里声明了 noreturn，末尾是 while(1) 死循环），保存返回地址没有意义。
     # @ 从这里开始，CPU 开始执行 C 代码。
@@ -40,6 +44,8 @@ kern_entry: # This is one label and in assembly it will be replaced by specific 
     .global bootstack # 导出并定义标签 bootstack
 bootstack:
     .space KSTACKSIZE # reserve 8192 bytes and inited with 0 by default. 
+    # .space 放在 .data 段，而不是 .bss 段，因此 8KB 的零会真实占用内核镜像的文件体积。放到 .bss 能省掉这 8KB，不过这只影响镜像大小，不影响功能。
+    
     .global bootstacktop
 bootstacktop: # export and define bootstacktop. this is the high addr of stack. 
 

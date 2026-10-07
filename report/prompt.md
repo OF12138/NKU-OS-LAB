@@ -5,6 +5,7 @@
 
 ---
 
+<!-- prompt:T0-env-compat.prompt.md -->
 ## 环境兼容：修改 QEMU 启动方式
 
 [PROMPT]
@@ -88,6 +89,7 @@ debug:  # 以 -s -S 启动 QEMU，等待 GDB 连接
 
 ---
 
+<!-- prompt:T1-ex1-entry.prompt.md -->
 # T1 最终提示词：入口汇编与启动栈分析
 
 [PROMPT]
@@ -129,6 +131,7 @@ Requirements：不得编造截图或人工答辩经历；运行时需要先建�
 
 ---
 
+<!-- prompt:T2-ex2-gdb.prompt.md -->
 ## 练习2：使用 GDB 验证启动流程
 
 [PROMPT]
@@ -241,6 +244,7 @@ void sbi_console_putchar(unsigned char ch) {
 
 ---
 
+<!-- prompt:T3-modules.prompt.md -->
 # T3 最终提示词
 
 ## 1. 链接脚本与内存布局
@@ -348,6 +352,7 @@ Requirements：说明 lab1 缺少 tools/grade.sh，make grade 不适用；不得
 
 ---
 
+<!-- prompt:T4-knowledge.prompt.md -->
 # T4 最终提示词：实验与 OS 原理的知识点对照
 
 [PROMPT]
@@ -388,6 +393,7 @@ Requirements：仅依据真实代码判断范围，不抄写参考报告，不�
 
 ---
 
+<!-- prompt:T5-mainline.prompt.md -->
 ## 实验整体逻辑分析
 
 [PROMPT]
@@ -465,3 +471,8 @@ BASE_ADDRESS = 0x80200000;
 **Requirements**:
 - 结论必须与其他 section 一致，不引入它们没有验证过的说法。
 - 结尾说明当前内核停在死循环中的原因，以及后续实验将补充的内容。
+
+---
+
+---
+
