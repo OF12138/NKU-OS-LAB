@@ -49,4 +49,5 @@
 ## 报告写法
 
 * 动笔前先参考 `reference/` 中前辈的同类报告，防止偏题或掉坑；只能参考，不能抄袭。
-* 图片插在相关文字中间，不要集中放在末尾；每张图下面写图题（`<center>图 x-y　……</center>`）。
+* 图片插在相关文字中间，不要集中放在末尾；每张图下面写图题 `<p align="center">图 x-y　……</p>`。**不要用 `<center>`**：GitHub 会删掉这个标签，导致不居中；`align="center"` 在 GitHub 和 Typora 上都有效。
+* **report.md 由用户亲自修改。** 用户改它期间，不运行任何会写 report.md 的脚本；之后补内容只用 `merge-report.py --fill`，运行前先 `git status` 确认 report.md 没有未提交的修改，有就先停下来问用户。
