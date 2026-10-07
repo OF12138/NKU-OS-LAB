@@ -7,10 +7,10 @@
 | ID | 任务 | 负责人 | 状态 | 可改文件 |
 |----|------|--------|------|----------|
 | T0 | 环境兼容：让 make qemu / make debug 在各版本 QEMU 下都能启动内核 | openfar | 完成 | code/Makefile, report/sections/T0-*.md |
-| T1 | 练习1：entry.S 中 la sp / tail kern_init 的分析 | lyp | 待开始 | report/sections/T1-*.md |
+| T1 | 练习1：entry.S 中 la sp / tail kern_init 的分析 | lyp | 进行中 | report/sections/T1-*.md |
 | T2 | 练习2：用 GDB 跟踪 0x1000 → OpenSBI → 0x80200000 | openfar | 完成 | report/sections/T2-*.md, report/images/T2-* |
-| T3 | 核心模块理解：链接脚本与内存布局、SBI→cprintf 输出链、构建流程 | lyp | 待开始 | report/sections/T3-*.md |
-| T4 | 知识点对照：实验与 OS 原理的对应，以及原理中本实验未覆盖的知识点 | lyp | 待开始 | report/sections/T4-*.md |
+| T3 | 核心模块理解：链接脚本与内存布局、SBI→cprintf 输出链、构建流程 | lyp | 进行中 | report/sections/T3-*.md |
+| T4 | 知识点对照：实验与 OS 原理的对应，以及原理中本实验未覆盖的知识点 | lyp | 进行中 | report/sections/T4-*.md |
 | T5 | 整体逻辑主线 + 集成（合并 report.md 和 prompt.md） | openfar | 待开始 | report/sections/T5-*.md, report/report.md, report/prompt.md |
 | T6 | 实验目的、实验环境表、make qemu 运行截图、拓展（现代笔记本启动流程）、实验总结 | nagilix | 待开始 | report/sections/T6-*.md, report/images/T6-* |
 | T7 | 答辩准备：每人都要能回答问题清单中的全部问题 | 全员 | 待开始 | .handoff/tasks/T7-defense.md（各改自己的小节） |
