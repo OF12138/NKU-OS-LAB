@@ -28,11 +28,23 @@ BASE_ADDRESS = 0x80200000;
 | `.sdata` | `[0x80203000,0x80203008)` | `SBI_CONSOLE_PUTCHAR` |
 | BSS清零区间 | `[0x80203008,0x80203008)` | 空区间，`edata=end` |
 
+下面的 `nm` 输出中可以直接核对入口、栈和数据边界。图为本机命令原始输出展示页的截图。
+
+![lyp本机内核符号表](../images/T3-symbols.jpg)
+
+<center>图 T3-1　kern_entry、启动栈和数据边界的符号地址</center>
+
 `bootstacktop` 和 `SBI_CONSOLE_PUTCHAR` 同为 `0x80203000`，看起来像栈与变量重叠，实际没有冲突：前者是栈区域结束的标签，栈不包含这一边界字节，后者从这里开始占用空间。
 
 脚本还定义了三个边界：`etext` 在 `.text` 之后，`edata` 在 `.data/.sdata` 之后，`end` 在 `.bss` 之后。`kern_init` 用后两个地址确定清零范围。它们不是源码中的普通数组，`extern char edata[], end[]` 只是引用链接符号的写法。脚本使用 `PROVIDE`，本次未引用的 `etext` 没出现在 `nm` 的结果中。
 
 `readelf -l` 中有两个 `LOAD` 段，分别覆盖 `.text/.rodata` 和 `.data/.sdata`，起始物理地址为 `0x80200000`、`0x80201000`。QEMU 按这些程序头装载内核。入口处读到 `satp=0`，本实验尚未启用分页，因此这里的段布局还不是进程的虚拟地址空间，也没有据此建立页表权限。
+
+![lyp本机ELF程序头](../images/T3-elf-layout.jpg)
+
+<center>图 T3-2　ELF 入口和两个 LOAD 段的装载范围</center>
+
+图中第一行入口为 `0x80200000`，两个 LOAD 段分别对应代码／只读数据和可写数据。程序头中的 `FileSiz/MemSiz` 本次相同，也与没有非空 BSS 的结果相符。
 
 ### 最终提示词
 
@@ -109,25 +121,19 @@ uint64_t sbi_call(uint64_t sbi_type, uint64_t arg0, uint64_t arg1, uint64_t arg2
 
 `sbi_console_putchar` 选择旧式 SBI 的字符输出调用号1。`sbi_call` 用内联汇编把调用号放到 `a7`，字符放到 `a0`，其余参数放到 `a1/a2`，最后执行 `ecall`。
 
-图 T3-1 显示的是小组练习2记录的一次字符输出。执行前 `priv=1`，仍在 S 态；`a7=1` 表示字符输出，`a0=0x28` 是加载提示的第一个字符 `(`。
+执行 `ecall` 前，格式化和字符处理都在 S 态完成。陷入后，处理器记录异常原因和返回地址，进入 OpenSBI 的 M 态陷阱入口。固件保存现场、分发字符输出请求，再由控制台服务调用 UART 驱动。处理结束后恢复现场，返回到 `ecall` 的下一条内核指令，继续输出后续字符。
 
-![输出第一个字符时的ecall陷入和返回](../images/T2-4-ecall.png)
+为观察这次调用，本机在 `0x80200492` 的 `ecall` 处断下，再单步进入固件，最后在下一条内核指令 `0x80200496` 处断下。
 
-<center>图 T3-1　输出字符 '(' 时，从S态陷入M态，再返回S态（复用T2的QEMU 8.2.2调试截图）</center>
+![lyp本机SBI陷入与返回](../images/T3-ecall-step.jpg)
 
-单步执行后，`priv` 变为3，`mcause=9`，`mepc` 记录了原来的 `ecall` 地址，PC 来到 `mtvec` 指向的固件陷阱入口。继续执行到下一条内核指令时，`priv` 又变为1，左侧也已经输出 `(`。因此，格式串的解析在 S 态完成，只有字符请求通过 `ecall` 进入 M 态。
+<center>图 T3-3　字符输出时 S→M→S 的 GDB 批处理输出（QEMU 6.2.0 / OpenSBI v0.9）</center>
 
-换上带符号的 OpenSBI v1.3 后，练习2在 `uart8250_putc` 下断点，得到了图 T3-2 的调用栈：
-
-![OpenSBI字符输出的调用栈](../images/T2-6-ecall-chain.png)
-
-<center>图 T3-2　SBI请求经陷阱分发和控制台服务，最终到达uart8250_putc（复用T2截图）</center>
-
-从下向上读这段栈：`_trap_handler` 保存现场，`sbi_trap_handler` 判断异常原因，`sbi_ecall_handler` 分发请求，旧式控制台处理函数再经 `sbi_putc` 到达 UART 驱动。图中 `uart8250_putc` 的参数为 `ch=40 '('`，与陷入前的 `a0` 相符。内核只提供调用号和字符，UART寄存器的操作留在固件中。
+图中 `a7=1`、`a0=0x28`，表示请求输出字符 `(`。单步后 `priv` 从1变成3，`mcause=9`，`mepc` 记录 `0x80200492`，PC 到达 `mtvec` 指向的 `0x80000520`。返回内核时 PC 为 `0x80200496`，`priv` 又变成1。这组寄存器变化对应了一次完整的固件调用。
 
 这里的 SBI 请求是 S态内核调用 M态固件，和用户程序的 U→S 系统调用不同。当前配置没有把 S态 `ecall` 委托回 S态，固件处理完请求后推进返回地址，再用 `mret` 回到内核。
 
-本机 GCC 10.2.0 构建出的 `ecall` 在 `0x80200492`，图中另一工具链的地址为 `0x8020046c`。地址变化不影响这条调用关系。核对时还发现 `vcprintf`、`sbi_call` 没有独立存活符号：它们的逻辑被 `-O2` 内联，剩余未使用节又被链接器删除，所以源码里的函数层次不一定都出现在最终调用栈中。
+本机 GCC 10.2.0 构建出的 `ecall` 在 `0x80200492`。核对时还发现 `vcprintf`、`sbi_call` 没有独立存活符号：它们的逻辑被 `-O2` 内联，剩余未使用节又被链接器删除，所以源码里的函数层次不一定都出现在最终调用栈中。
 
 内核不能直接使用宿主环境的 `printf`，因为这里没有用户态C运行库及它依赖的文件、系统调用接口，构建也使用了 `-nostdlib/-nostdinc`。项目通过自己的格式化函数和 SBI 输出完成这项工作。
 
@@ -137,7 +143,7 @@ uint64_t sbi_call(uint64_t sbi_type, uint64_t arg0, uint64_t arg1, uint64_t arg2
 [PROMPT]
 任务：分析内核从 cprintf 到 ecall 的输出功能，撰写 T3 报告的输出模块。
 操作要求：直接写入真实报告文件，不修改代码；按源码顺序说明每层职责。
-输出要求：列出源码调用链，解释各层职责；插入 T2 的 ecall 和 UART 调试截图，结合寄存器与调用栈说明格式化、陷入、设备输出和返回。注明截图环境与本机产物的地址差异。
+输出要求：列出源码调用链，解释各层职责；只使用 lyp 自己实测产生的图片说明输出过程，不引用 T2 图片；区分源码关系与实测结果。
 
 [RELY]
 以下声明原样摘自 code/libs/stdio.h、code/kern/driver/console.h、code/libs/sbi.h：
@@ -169,7 +175,7 @@ Requirements：只说明本框架实际支持和使用的旧式 SBI console_putc
 
 ### 分析迭代过程
 
-按源码整理调用链后，`nm` 中找不到 `vcprintf` 和 `sbi_call`。检查编译参数和 `sbi_console_putchar` 的反汇编，确认是内联与未使用节删除，因而在报告中分别说明源码关系和实际机器码。输出的特权级则结合图 T3-1 的寄存器变化判断。
+按源码整理调用链后，`nm` 中找不到 `vcprintf` 和 `sbi_call`。检查编译参数和 `sbi_console_putchar` 的反汇编，确认是内联与未使用节删除，因而在报告中分别说明源码关系和实际机器码。随后用图 T3-3 的单步记录核对陷入和返回。
 
 ## 功能模块：构建与镜像加载
 
@@ -246,6 +252,6 @@ Domain0 Next Mode         : S-mode
 (THU.CST) os is loading ...
 ```
 
-加载提示输出后，内核按源码进入无限循环，8秒后由 `timeout` 停止，退出码为124。本机运行结果保留为文字记录；图 T3-1、T3-2 是小组T2任务的调试证据。框架没有 `tools/grade.sh`，Lab1不执行 `make grade`。
+加载提示输出后，内核按源码进入无限循环，8秒后由 `timeout` 停止，退出码为124。框架没有 `tools/grade.sh`，Lab1不执行 `make grade`。
 
-构建分析主要依据 `Makefile`、`tools/function.mk`、`tools/kernel.ld`；输出分析依据 `stdio.c`、`printfmt.c`、`console.c`、`sbi.c`，并结合T2的调试截图。指导书的[项目组成与执行流](http://8.135.34.58/lab2026/_book/lab1/lab1_2_2_file.html)用于核对任务范围。
+构建分析主要依据 `Makefile`、`tools/function.mk`、`tools/kernel.ld`；输出分析依据 `stdio.c`、`printfmt.c`、`console.c`、`sbi.c`。指导书的[项目组成与执行流](http://8.135.34.58/lab2026/_book/lab1/lab1_2_2_file.html)用于核对任务范围。
