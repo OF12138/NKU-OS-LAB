@@ -5,7 +5,7 @@
 [PROMPT]
 任务：分析 code/tools/kernel.ld 与入口目标文件顺序，撰写 report/sections/T3-modules.md 的链接与内存布局模块。
 操作要求：直接编辑真实报告文件，保留实验代码及其他成员章节。
-输出要求：结合 nm、readelf 与 make print-kobjs，解释入口、段顺序、边界符号和装载地址；明确链接器与装载器的不同职责。
+输出要求：在真实 VSCode 终端的 tmux 会话运行 nm/readelf 并截图，裁掉无关界面；结合 nm、readelf 与 make print-kobjs，解释入口、段顺序、边界符号和装载地址；明确链接器与装载器的不同职责。
 
 [RELY]
 原样摘自 code/tools/kernel.ld（省略行尾注释）：
@@ -42,7 +42,7 @@ Requirements：不把段标志当成已经开启的页表权限；不把页对�
 [PROMPT]
 任务：分析内核从 cprintf 到 ecall 的输出功能，撰写 T3 报告的输出模块。
 操作要求：直接写入真实报告文件，不修改代码；按源码顺序说明每层职责。
-输出要求：列出源码调用链，解释各层职责；只使用 lyp 自己实测产生的图片说明输出过程，不引用 T2 图片；区分源码关系与实测结果。
+输出要求：列出源码调用链，解释各层职责；在真实 VSCode 终端的 tmux/GDB 会话中单步并截图，只使用 lyp 自己实测产生的图片说明输出过程，不引用 T2 图片；区分源码关系与实测结果。
 
 [RELY]
 以下声明原样摘自 code/libs/stdio.h、code/kern/driver/console.h、code/libs/sbi.h：
@@ -65,7 +65,7 @@ void sbi_console_putchar(unsigned char ch) {
 
 [SPECIFICATION]
 ## 输出功能分析
-Pre-Condition：读取 stdio.c、printfmt.c、console.c、sbi.c，结合 T2 的固件调试记录和本次反汇编。
+Pre-Condition：读取 stdio.c、printfmt.c、console.c、sbi.c，结合本次独立 GDB 单步记录和反汇编。
 Post-Condition：解释变参、回调与计数，在 S 态完成格式化，在当前固件配置下通过 S 态 ecall 进入 M 态；a7=1，a0 为字符；OpenSBI 最终输出，返回后继续内核执行。
 Case 1：编译优化内联 vcprintf 或 sbi_call 时，保留源码逻辑链并标明 ELF 中不一定有独立函数符号。
 Case 2：讨论 ecall 时，区分 S→M 的 SBI 调用与 U→S 的用户系统调用；不写成任意 ecall 必然进入 M 态。

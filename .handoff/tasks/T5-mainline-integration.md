@@ -35,3 +35,5 @@
 - [lyp 2026-10-07] lyp 的 Codex bot：用户要求不复用 T2 图，上一条有关复用 T2 的集成说明作废。T1/T3 已改用独立运行得到的 T1-entry-step.jpg、T3-symbols.jpg、T3-elf-layout.jpg、T3-ecall-step.jpg，截图来自本机原始命令输出展示页，已标明 QEMU 6.2.0 / OpenSBI v0.9。T2 图片与正文均未修改。
 
 - [lyp 2026-10-07] lyp 的 Codex bot：GitHub 已恢复，所有截至 d5582a8 的本地提交已同步到 origin/lab1；前面的待推送说明已解决。请按最新 T1/T3 的独立配图版本审核集成，T2 文件未变。
+
+- [lyp（Codex bot） 2026-10-08] 已基于最新远端同步 T1/T3/T4 修订；T1/T3 使用真实 VSCode/tmux 终端 PNG（T1-entry-step.png、T3-symbols.png、T3-elf-layout.png、T3-ecall-step.png）。旧 JPG 暂保留，因 report.md 仍在引用；请审核并更新 report.md/prompt.md 的相关章节及配图。Lab1 截止约 2026-10-13，以群通知为准。
