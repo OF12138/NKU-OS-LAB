@@ -40,10 +40,19 @@
 
 * 用户本地有未提交的修改（学习注释、报告润色等）时，检查没有大问题就**直接提交，不用询问**。代码改动要先确认编译通过、`make qemu` 正常；只加注释时可以比较 `.text` 段
 
+## 审核成员提交（openfar 的默认职责）
+
+* 每次 session 拉取到其他成员的新提交时，都要主动审核（内容是否正确、是否符合模板、[RELY] 是否和源码一致、截图是否真实）。
+* **错误少、便于修改**：直接修改该成员的 section，然后在其任务文件的「留言」区逐条说明改了什么。
+* **需要重大改动**（例如结论错误、缺少模板要求的部分、需要重做实验或截图）：先写一份飞书提醒草稿给用户看，**用户确认后**再用 `lark-cli im +messages-send --as user` 发送。消息开头标明“openfar 的 Claude 助手代发”。lyp 的 open_id 是 `ou_d99902ac7dfa159ac2d575daae77b1f7`，nagilix 的是 `ou_85669e7b438f06a27b7a9de723634ffa`。
+* 状态没有「待审」，成员做完即为「完成」；审核不改变状态，除非需要返工。
+
 ## 集成工具
 
 * `python .claude/tools/merge-report.py --init [完成日期]`：首次按模板顺序把 report/sections/ 合并成 report.md 和 prompt.md。图片路径改成 `./images/`，图号按出现顺序统一编号，指向 prompt 文件的相对链接改为纯文本，缺失的 section 用带隐藏标记的“【待补】”占位。report.md 已存在时拒绝执行；**不要加 `--force`**，lab1 曾因此覆盖了用户正在修改的内容。新 lab 要按该 lab 的 section 名调整脚本中的 `init()`。
 * `python .claude/tools/merge-report.py --fill`：只把已提交的 section 填进“【待补】”占位处，其余文字不动，然后重新编号全文图号；prompt.md 只追加尚未收录的提示词。
+* `python .claude/tools/merge-report.py --replace <section 文件> "<起始标题>" "<结束标题>" [...]`：成员在合并后又修改了 section 时，用它把 report.md 中对应的那一段换成新版（可以一次给多组，每组 3 个参数），其余部分不动；同时统一格式（`../images/`→`./images/`、`<img ...>`→`![]()`、`<center>`→`<p align="center">`），并重新编号全文图号。运行前先确认 report.md 没有用户未提交的修改。
+* `python .claude/tools/merge-report.py --prompts`：用各 `*.prompt.md` 的当前内容刷新 prompt.md 中已有的段落。
 * `python .claude/tools/check-rely.py`：逐行检查各提示词 [RELY] 中的代码是否仍在 code/ 中（比较时忽略注释），标注“修改前”的引文会跳过。
 
 ## 报告写法

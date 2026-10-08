@@ -86,7 +86,6 @@ debug:  # 以 -s -S 启动 QEMU，等待 GDB 连接
 **Requirements**:
 - 同一份 Makefile 必须在两类 QEMU 上都能工作，不能依赖某个特定的 QEMU 版本号。
 
-
 ---
 
 <!-- prompt:T1-ex1-entry.prompt.md -->
@@ -95,7 +94,7 @@ debug:  # 以 -s -S 启动 QEMU，等待 GDB 连接
 [PROMPT]
 任务：分析 code/kern/init/entry.S 的两个入口伪指令及其与 kern_init 的关系，完成练习1。
 操作要求：直接撰写真实文件 report/sections/T1-ex1-entry.md，保留现有实验代码，不修改其他成员文件。
-输出要求：围绕源码和单步观察回答问题，只使用 lyp 自己实测产生的图片并解释寄存器变化，不引用 T2 图片。区分伪指令、链接松弛后的机器指令与编译期栈空间预留，协作记录不写进正文。
+输出要求：围绕源码和单步观察回答问题，在真实 VSCode 终端的 tmux/GDB 会话中重新单步并截图，裁掉无关界面，只使用 lyp 自己实测产生的图片并解释寄存器变化，不引用 T2 图片。区分伪指令、链接松弛后的机器指令与编译期栈空间预留，协作记录不写进正文。
 
 [RELY]
 以下内容分别原样摘自 entry.S、mmu.h、memlayout.h、init.c（entry.S 与 init.c 省略了注释行和行尾注释）：
@@ -127,7 +126,6 @@ Post-Condition：报告中每个具体地址与本次 nm/objdump/GDB 输出一�
 Case 1：链接松弛改变 tail 的展开形式时，同时说明通用的 auipc/jalr 语义与最终 ELF 的指令，不写成固定展开。
 Case 2：edata 与 end 相等时，说明本次清零长度为零，不声称已清除非空 BSS。
 Requirements：不得编造截图或人工答辩经历；运行时需要先建立有效栈再进入需要栈的 C 函数，但不要断言所有内核入口的第一条机器指令都必须设置 sp。
-
 
 ---
 
@@ -241,7 +239,6 @@ void sbi_console_putchar(unsigned char ch) {
 - 面向不熟悉 OpenSBI 的读者，先讲清楚 M/S/U 特权级和 SBI 的作用，再展开细节。
 - 示意图采用传统工科风格：黑白、直角矩形。截图使用真实终端画面，左栏 make debug、右栏 make gdb。
 
-
 ---
 
 <!-- prompt:T3-modules.prompt.md -->
@@ -252,7 +249,7 @@ void sbi_console_putchar(unsigned char ch) {
 [PROMPT]
 任务：分析 code/tools/kernel.ld 与入口目标文件顺序，撰写 report/sections/T3-modules.md 的链接与内存布局模块。
 操作要求：直接编辑真实报告文件，保留实验代码及其他成员章节。
-输出要求：结合 nm、readelf 与 make print-kobjs，解释入口、段顺序、边界符号和装载地址；明确链接器与装载器的不同职责。
+输出要求：在真实 VSCode 终端的 tmux 会话运行 nm/readelf 并截图，裁掉无关界面；结合 nm、readelf 与 make print-kobjs，解释入口、段顺序、边界符号和装载地址；明确链接器与装载器的不同职责。
 
 [RELY]
 原样摘自 code/tools/kernel.ld（省略行尾注释）：
@@ -289,7 +286,7 @@ Requirements：不把段标志当成已经开启的页表权限；不把页对�
 [PROMPT]
 任务：分析内核从 cprintf 到 ecall 的输出功能，撰写 T3 报告的输出模块。
 操作要求：直接写入真实报告文件，不修改代码；按源码顺序说明每层职责。
-输出要求：列出源码调用链，解释各层职责；只使用 lyp 自己实测产生的图片说明输出过程，不引用 T2 图片；区分源码关系与实测结果。
+输出要求：列出源码调用链，解释各层职责；在真实 VSCode 终端的 tmux/GDB 会话中单步并截图，只使用 lyp 自己实测产生的图片说明输出过程，不引用 T2 图片；区分源码关系与实测结果。
 
 [RELY]
 以下声明原样摘自 code/libs/stdio.h、code/kern/driver/console.h、code/libs/sbi.h：
@@ -312,7 +309,7 @@ void sbi_console_putchar(unsigned char ch) {
 
 [SPECIFICATION]
 ## 输出功能分析
-Pre-Condition：读取 stdio.c、printfmt.c、console.c、sbi.c，结合 T2 的固件调试记录和本次反汇编。
+Pre-Condition：读取 stdio.c、printfmt.c、console.c、sbi.c，结合本次独立 GDB 单步记录和反汇编。
 Post-Condition：解释变参、回调与计数，在 S 态完成格式化，在当前固件配置下通过 S 态 ecall 进入 M 态；a7=1，a0 为字符；OpenSBI 最终输出，返回后继续内核执行。
 Case 1：编译优化内联 vcprintf 或 sbi_call 时，保留源码逻辑链并标明 ELF 中不一定有独立函数符号。
 Case 2：讨论 ecall 时，区分 S→M 的 SBI 调用与 U→S 的用户系统调用；不写成任意 ecall 必然进入 M 态。
@@ -348,7 +345,6 @@ Post-Condition：说明 .S 先预处理、目标文件重定位后形成 ELF；o
 Case 1：看到旧式 loader 相关注释时，说明这是历史方案，不当作当前执行命令。
 Case 2：make qemu 因 kern_init 的无限循环被 timeout 停止时，记录输出与预期退出码，不把超时误判为启动失败或测试全面通过。
 Requirements：说明 lab1 缺少 tools/grade.sh，make grade 不适用；不得声称在本机验证了未运行的 QEMU 版本。
-
 
 ---
 
@@ -389,7 +385,6 @@ Post-Condition：每项明确给出实验事实、OS 概念与二者关系；启
 Case 1：说明异常机制时，承认 ecall 已触发固件陷阱处理，只说未实现内核自己的中断/异常处理，不声称实验完全没有异常。
 Case 2：讨论页与对齐时，区分大小常量和实际页表/分配器；不从头文件名推断功能已经实现。
 Requirements：仅依据真实代码判断范围，不抄写参考报告，不编造原理课讲授进度或人工学习体验。
-
 
 ---
 
@@ -471,10 +466,6 @@ BASE_ADDRESS = 0x80200000;
 **Requirements**:
 - 结论必须与其他 section 一致，不引入它们没有验证过的说法。
 - 结尾说明当前内核停在死循环中的原因，以及后续实验将补充的内容。
-
----
-
----
 
 ---
 

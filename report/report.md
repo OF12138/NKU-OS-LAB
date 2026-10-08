@@ -90,9 +90,11 @@ Lab1 不要求编写新代码，我们更多进行分析。下表列出了启动
 
 ## 练习1：理解内核启动中的程序入口操作
 
-**负责人：** 2414099－李云鹏（lyp）
+**负责人：** 2414099－李云鹏
 
-进入内核后，`entry.S` 先执行 `la sp, bootstacktop`，再执行 `tail kern_init`。这两句分别解决栈和控制流的问题：先给 C 函数准备能用的栈，再跳到 C 语言入口。
+> **题目**：阅读 kern/init/entry.S内容代码，结合操作系统内核启动流程，说明指令 la sp, bootstacktop 完成了什么操作，目的是什么？ tail kern_init 完成了什么操作，目的是什么？
+
+**结论**：进入内核后，`entry.S` 先执行 `la sp, bootstacktop`，再执行 `tail kern_init`。这两句分别解决栈和控制流的问题：先给 C 函数准备栈，再把控制权交给 C 语言内核初始化函数。
 
 ### 1. `la sp, bootstacktop` 做了什么
 
@@ -108,30 +110,30 @@ bootstack:
 bootstacktop:
 ```
 
-`mmu.h` 中 `PGSHIFT=12`、`PGSIZE=4096`，`memlayout.h` 中 `KSTACKPAGE=2`。因此 `.align PGSHIFT` 使栈按 4096 字节对齐，`.space KSTACKSIZE` 预留 8192 字节。`bootstack` 和 `bootstacktop` 分别标记这块空间的低地址端和高地址端。
+`mmu.h` 中 `PGSHIFT=12`、`PGSIZE=4096`，`memlayout.h` 中 `KSTACKPAGE=2`。因此 `.align PGSHIFT` 使栈按 4096 字节对齐，`.space KSTACKSIZE` 为内核栈分配内存空间（8192 字节）。`bootstack` 和 `bootstacktop` 则分别标记这块空间的低地址端和高地址端。
 
 `la` 加载的是 `bootstacktop` 的地址。执行后，`sp` 指向预留区域的高地址端；RISC-V 栈向低地址增长，后面的函数通过减小 `sp` 留出栈帧。这里没有动态申请内存：栈空间已经由汇编和链接阶段安排好，入口只需让 `sp` 指向它。
 
-进入 `kern_init` 后，编译器会生成分配栈帧、保存返回地址的指令，后续 `cprintf` 也会使用栈。因此**入口要先建立内核自己的栈**，不能沿用仍指向固件区域的 `sp`。
+之所以一定要先设置栈，是因为接下来进入 `kern_init()` 后，C 函数会用栈保存返回地址、局部变量等，后面的 `cprintf()` 也需要正常的函数调用环境。
 
-本机用 SiFive GCC 10.2.0 构建了同一份代码，`nm` 得到：
+使用命令 `riscv64-unknown-elf-nm -n bin/kernel` 查看最终内核 ELF 文件里的符号及其地址，观察到：
 
 ```text
 0000000080201000 D bootstack
 0000000080203000 D bootstacktop
 ```
 
-所以栈区域是 `[0x80201000,0x80203000)`，共 8 KiB；初始 `sp=0x80203000`，也满足 ABI 的 16 字节对齐要求。
+即栈区是 `[0x80201000,0x80203000)`，共 8 KiB；初始 `sp=0x80203000`，也满足 ABI 的 16 字节对齐要求。
 
-下面是本机重新运行 GDB 后的输出。截图取自批处理原始输出的展示页：`sp` 从 `0x80017ee0` 变为 `0x80203000`，执行 `tail` 后 PC 到达 `kern_init`，`ra` 仍为 `0x800078cc`。
+下面是本机重新运行 GDB 后的输出。在 VSCode 终端的 tmux 分屏中，左栏运行 `make debug`，右栏连接 GDB 并单步执行：`sp` 从 `0x80017ee0` 变为 `0x80203000`，执行 `tail` 后 PC 到达 `kern_init`，`ra` 仍为 `0x800078cc`。
 
-![lyp本机入口单步实验](./images/T1-entry-step.jpg)
+![](./images/T1-entry-step.png)
 
-<p align="center">图 1　启动栈设置和尾跳转的 GDB 输出（lyp 本机，QEMU 6.2.0 / OpenSBI v0.9）</p>
+<p align="center">图 1　启动栈设置和尾跳转的 GDB 单步调试（QEMU 6.2.0 / OpenSBI v0.9）</p>
 
 ### 2. 为什么一条 `la` 要单步两次
 
-在最终 ELF 中，入口的反汇编为：
+通过指令`riscv64-unknown-elf-objdump -d -M no-aliases bin/kernel`查看在最终 ELF 中，入口的反汇编为：
 
 ```text
 80200000: 00003117    auipc sp,0x3
@@ -139,17 +141,17 @@ bootstacktop:
 80200008: a009        j     8020000a <kern_init>
 ```
 
-`la` 是伪指令，前两条才是它实际对应的机器指令。`auipc` 用当前 PC 加上高位偏移，得到 `0x80200000 + (3 << 12) = 0x80203000`；第二条补低位偏移。这次低位恰好为零，所以 `addi sp,sp,0` 被反汇编显示成 `mv sp,sp`。加上 `-M no-aliases` 就能看到原指令。
+`la` 是伪指令，前两条才是它实际对应的机器指令。`auipc` 用当前 PC 加上高位偏移，得到 `0x80200000 + (3 << 12) = 0x80203000`；第二条补低位偏移。这次低位恰好为零，所以 `addi sp,sp,0` 被反汇编显示成 `mv sp,sp`。
 
 GDB 按机器指令单步，所以检查 `la` 的执行结果时要执行两次 `si`，才能到下一行源码。
 
 ### 3. `tail kern_init` 做了什么
 
-`tail` 跳到 `kern_init`，且不为这次跳转保存返回地址。普通 `call` 会更新 `ra`，以便函数结束后回到调用点；这里启动入口不再需要继续执行，直接把控制权交给内核初始化函数即可。
+`tail` 跳到 `kern_init`，且不保存返回地址，直接把控制权交给内核初始化函数即可。普通 `call` 会更新 `ra`，以便函数结束后回到调用点。但这里启动入口不再需要继续执行。
 
-检查未链接的 `entry.o`，`tail` 对应带重定位的 `auipc t1,...` 和 `jalr x0,0(t1)`。链接后，目标很近，链接器把这两条松弛成一条16位的 `c.j`，默认显示为上面的 `j`。因此要分清两个层次：伪指令表达的是不保存返回地址的跳转，最终使用哪几条机器指令还取决于链接结果。
+值得注意的是，`tail` 只表示“不保存返回地址地跳转”，但最终使用哪种机器指令，取决于链接结果。通过指令 `riscv64-unknown-elf-objdump -dr obj/kern/init/entry.o` 检查未链接的 `entry.o` ，可以看到，`tail kern_init` 被汇编为带重定位信息的 `auipc` 和 `jalr` 两条指令。链接后，由于 `kern_init` 距离较近，链接器将其优化为一条 16 位的 `c.j`。
 
-本机在 GDB 中执行完 `la`、再执行完 `tail`，得到以下记录，使用的固件是 OpenSBI v0.9：
+本机在 GDB 中执行完 `la`、再执行完 `tail`，得到以下记录：
 
 | 时刻 | PC | sp | ra |
 |---|---|---|---|
@@ -174,8 +176,6 @@ GDB 按机器指令单步，所以检查 `la` 的执行结果时要执行两次 
 调用 `memset` 时，启动栈已经在使用了。如果把栈直接移到这个会被整体清零的 BSS 区间，清零可能覆盖栈上保存的返回地址和数据。放在 `.data` 后，启动栈位于 `edata` 之前，不会被这次清零碰到；相应地，预留的零字节也会占用镜像空间。
 
 本次 `nm` 中 `edata` 和 `end` 都是 `0x80203008`，说明当前没有存活的非空 BSS，调用长度为零。这里解释的是这段启动代码的用途，而本次构建还没有数据需要它清零。
-
-
 
 
 ## 练习2：使用 GDB 验证启动流程
@@ -385,13 +385,13 @@ _trap_handler          (fw_base.S)        保存内核的寄存器现场
 
 
 
-## 功能模块：链接脚本与内核内存布局
+## 核心模块理解
 
-**负责人：** 2414099－李云鹏（lyp）
+**负责人：** 2414099－李云鹏
 
-### 模块功能描述
+### 功能模块：链接脚本与内核内存布局
 
-`kernel.ld` 把各目标文件的代码和数据组织成内核 ELF，确定入口及各段的地址。本实验分析已有配置，不需要新增函数。
+链接脚本`kernel.ld` 把各目标文件的代码和数据组织成内核 ELF，确定入口及各段的地址。
 
 ```ld
 OUTPUT_ARCH(riscv)
@@ -404,7 +404,7 @@ BASE_ADDRESS = 0x80200000;
 
 为什么 `kern_entry` 恰好在最前面？`entry.S` 使用的是普通 `.text`，而 `make print-kobjs` 输出的第一个文件是 `obj/kern/init/entry.o`，之后才是 `init.o`、`stdio.o` 等。链接器收集这些输入节时，先放入 `entry.o` 的入口代码，所以 `kern_entry` 的地址就是 `.text` 的起点。仅有 `ENTRY` 并不会把这个函数移到最前面。
 
-脚本按 `.text → .rodata → 页对齐 → .data → .sdata → .bss` 排列。用 SiFive GCC 10.2.0 构建后，`readelf -S` 和 `nm` 的结果如下：
+脚本的安排顺序是 `.text → .rodata → 页对齐 → .data → .sdata → .bss` 。用 SiFive GCC 10.2.0 构建后，`readelf -S` 和 `nm` 的结果如下：
 
 | 区域 | 地址范围（左闭右开） | 本次内容 |
 |---|---|---|
@@ -415,72 +415,19 @@ BASE_ADDRESS = 0x80200000;
 | `.sdata` | `[0x80203000,0x80203008)` | `SBI_CONSOLE_PUTCHAR` |
 | BSS清零区间 | `[0x80203008,0x80203008)` | 空区间，`edata=end` |
 
-下面的 `nm` 输出中可以直接核对入口、栈和数据边界。图为本机命令原始输出展示页的截图。
+下面的 `nm` 输出中可以直接核对入口、栈和数据边界。
 
-![lyp本机内核符号表](./images/T3-symbols.jpg)
+![lyp本机内核符号表](./images/T3-symbols.png)
 
 <p align="center">图 9　kern_entry、启动栈和数据边界的符号地址</p>
 
-`bootstacktop` 和 `SBI_CONSOLE_PUTCHAR` 同为 `0x80203000`，看起来像栈与变量重叠，实际没有冲突：前者是栈区域结束的标签，栈不包含这一边界字节，后者从这里开始占用空间。
+使用 `readelf -W -l bin/kernel` 查看内核 ELF 文件的程序头表，可以发现其中包含两个 `LOAD` 段。第一个段的起始物理地址为 `0x80200000`，包含 `.text` 和 `.rodata` 节，具有可读、可执行属性；第二个段的起始物理地址为 `0x80201000`，包含 `.data` 和 `.sdata` 节，具有可读、可写属性。通过 `readelf -W -S bin/kernel` 查看节头表，可以进一步验证各节的具体地址及其布局。此外，两个装载段的虚拟地址与物理地址相同。由于内核入口处 `satp=0`，说明当前仍处于未启用分页的 Bare 模式，因此这些地址直接对应物理内存，ELF 中的段权限也尚未通过页表落实为内存访问权限。
 
-脚本还定义了三个边界：`etext` 在 `.text` 之后，`edata` 在 `.data/.sdata` 之后，`end` 在 `.bss` 之后。`kern_init` 用后两个地址确定清零范围。它们不是源码中的普通数组，`extern char edata[], end[]` 只是引用链接符号的写法。脚本使用 `PROVIDE`，本次未引用的 `etext` 没出现在 `nm` 的结果中。
+![lyp本机ELF程序头](./images/T3-elf-layout.png)
 
-`readelf -l` 中有两个 `LOAD` 段，分别覆盖 `.text/.rodata` 和 `.data/.sdata`，起始物理地址为 `0x80200000`、`0x80201000`。QEMU 按这些程序头装载内核。入口处读到 `satp=0`，本实验尚未启用分页，因此这里的段布局还不是进程的虚拟地址空间，也没有据此建立页表权限。
+<p align="center">图 10　ELF 入口、两个 LOAD 段及节表</p>
 
-![lyp本机ELF程序头](./images/T3-elf-layout.jpg)
-
-<p align="center">图 10　ELF 入口和两个 LOAD 段的装载范围</p>
-
-图中第一行入口为 `0x80200000`，两个 LOAD 段分别对应代码／只读数据和可写数据。程序头中的 `FileSiz/MemSiz` 本次相同，也与没有非空 BSS 的结果相符。
-
-### 最终提示词
-
-````markdown
-[PROMPT]
-任务：分析 code/tools/kernel.ld 与入口目标文件顺序，撰写 report/sections/T3-modules.md 的链接与内存布局模块。
-操作要求：直接编辑真实报告文件，保留实验代码及其他成员章节。
-输出要求：结合 nm、readelf 与 make print-kobjs，解释入口、段顺序、边界符号和装载地址；明确链接器与装载器的不同职责。
-
-[RELY]
-原样摘自 code/tools/kernel.ld（省略行尾注释）：
-```ld
-OUTPUT_ARCH(riscv)
-ENTRY(kern_entry)
-
-BASE_ADDRESS = 0x80200000;
-```
-```ld
-    .text : {
-        *(.text.kern_entry .text .stub .text.* .gnu.linkonce.t.*)
-    }
-```
-```ld
-    PROVIDE(edata = .);
-```
-```ld
-    PROVIDE(end = .);
-```
-
-[GUARANTEE]
-交付段布局表、etext/edata/end 的含义、ENTRY 与 BASE_ADDRESS 的区别、kern_entry 位于最前面的实际原因，以及验证命令和本次结果。
-
-[SPECIFICATION]
-## 链接布局分析
-Pre-Condition：读取完整 kernel.ld、entry.S、Makefile 和 function.mk，已生成实际 ELF。
-Post-Condition：说明当前 entry.S 使用普通 .text，entry.o 为链接输入的第一个目标文件；ENTRY 设置 ELF 入口，不自动重新排列代码。表中地址和边界与实际构建一致。
-Case 1：PROVIDE 符号没有被引用、nm 未输出 etext 时，解释它仍表示脚本中 .text 末尾的位置，不补造符号表记录。
-Requirements：不把段标志当成已经开启的页表权限；不把页对齐当成分页管理已实现；不修改链接脚本。
-````
-
-### 分析迭代过程
-
-检查入口位置时，发现 `entry.S` 没有定义单独的 `.text.kern_entry`，于是继续看实际链接输入顺序，确认 `entry.o` 排在首位。报告据此补充了 `ENTRY` 与段排序的区别。BSS的说明也按本次符号表调整为零长度清零。
-
-## 功能模块：格式化输出与 SBI 服务
-
-**负责人：** 2414099－李云鹏（lyp）
-
-### 模块功能描述
+### 功能模块：格式化输出与 SBI 服务
 
 `kern_init` 调用 `cprintf("%s\n\n", message)` 后，加载提示便出现在终端上。沿着代码往下看，这次输出经过以下路径：
 
@@ -502,9 +449,9 @@ void sbi_console_putchar(unsigned char ch);
 uint64_t sbi_call(uint64_t sbi_type, uint64_t arg0, uint64_t arg1, uint64_t arg2);
 ```
 
-`cprintf` 用 `va_start` 取得变参，交给 `vcprintf`。`vcprintf` 准备字符计数器，再把 `cputch` 和计数器地址交给 `vprintfmt`。后者解析 `%s` 等格式，每得到一个字符就调用一次回调。`cputch` 输出字符后增加计数，`cons_putc` 再将字符转成 `unsigned char`，交给 SBI。
+`cprintf` 首先通过 `va_start` 获取可变参数，再将格式字符串和参数交给 `vcprintf`。`vcprintf` 初始化字符计数器，并调用 `vprintfmt` 进行格式化处理。`vprintfmt` 负责解析 `%s` 等格式说明符，每生成一个字符，就调用回调函数 `cputch`。`cputch` 通过 `cons_putc` 将字符交给 SBI 输出，同时将字符计数加一。
 
-这一层回调让格式化与输出位置分开了：`vprintfmt` 只管生成字符，换一个回调就可以把结果写入内存缓冲区，项目中的 `vsnprintf` 正是这样复用它的。当前 `cprintf` 的通路没有字符缓冲队列，也没有把设备错误反馈为返回值；返回的计数是回调处理的字符数。
+采用回调函数的好处是将**格式化处理与实际输出分离**。`vprintfmt` 只负责生成字符，具体输出到哪里由回调函数决定。例如，`cprintf` 将字符输出到控制台，而 `vsnprintf` 则复用相同的格式化逻辑，将字符写入内存缓冲区。`cprintf` 最终返回的是已处理的字符数，而非设备实际成功输出的字符数。
 
 `sbi_console_putchar` 选择旧式 SBI 的字符输出调用号1。`sbi_call` 用内联汇编把调用号放到 `a7`，字符放到 `a0`，其余参数放到 `a1/a2`，最后执行 `ecall`。
 
@@ -512,65 +459,13 @@ uint64_t sbi_call(uint64_t sbi_type, uint64_t arg0, uint64_t arg1, uint64_t arg2
 
 为观察这次调用，本机在 `0x80200492` 的 `ecall` 处断下，再单步进入固件，最后在下一条内核指令 `0x80200496` 处断下。
 
-![lyp本机SBI陷入与返回](./images/T3-ecall-step.jpg)
+![lyp本机SBI陷入与返回](./images/T3-ecall-step.png)
 
-<p align="center">图 11　字符输出时 S→M→S 的 GDB 批处理输出（QEMU 6.2.0 / OpenSBI v0.9）</p>
+<p align="center">图 11　VSCode 终端中字符输出时 S→M→S 的 GDB 单步调试（QEMU 6.2.0 / OpenSBI v0.9）</p>
 
-图中 `a7=1`、`a0=0x28`，表示请求输出字符 `(`。单步后 `priv` 从1变成3，`mcause=9`，`mepc` 记录 `0x80200492`，PC 到达 `mtvec` 指向的 `0x80000520`。返回内核时 PC 为 `0x80200496`，`priv` 又变成1。这组寄存器变化对应了一次完整的固件调用。
+图中 `a7=1`、`a0=0x28`，表示请求输出字符 `(`。单步后 `priv` 从1变成3，`mcause=9`，`mepc` 记录 `0x80200492`，PC 到达 `mtvec` 指向的 `0x80000520`。返回内核时 PC 为 `0x80200496`，`priv` 又变成1。左栏此时出现了一个 `(`，与 `a0` 的字符值一致。这组寄存器变化对应了一次完整的固件调用。
 
-这里的 SBI 请求是 S态内核调用 M态固件，和用户程序的 U→S 系统调用不同。当前配置没有把 S态 `ecall` 委托回 S态，固件处理完请求后推进返回地址，再用 `mret` 回到内核。
-
-本机 GCC 10.2.0 构建出的 `ecall` 在 `0x80200492`。核对时还发现 `vcprintf`、`sbi_call` 没有独立存活符号：它们的逻辑被 `-O2` 内联，剩余未使用节又被链接器删除，所以源码里的函数层次不一定都出现在最终调用栈中。
-
-内核不能直接使用宿主环境的 `printf`，因为这里没有用户态C运行库及它依赖的文件、系统调用接口，构建也使用了 `-nostdlib/-nostdinc`。项目通过自己的格式化函数和 SBI 输出完成这项工作。
-
-### 最终提示词
-
-````markdown
-[PROMPT]
-任务：分析内核从 cprintf 到 ecall 的输出功能，撰写 T3 报告的输出模块。
-操作要求：直接写入真实报告文件，不修改代码；按源码顺序说明每层职责。
-输出要求：列出源码调用链，解释各层职责；只使用 lyp 自己实测产生的图片说明输出过程，不引用 T2 图片；区分源码关系与实测结果。
-
-[RELY]
-以下声明原样摘自 code/libs/stdio.h、code/kern/driver/console.h、code/libs/sbi.h：
-```c
-int cprintf(const char *fmt, ...);
-int vcprintf(const char *fmt, va_list ap);
-void vprintfmt(void (*putch)(int, void *), void *putdat, const char *fmt, va_list ap);
-void cons_putc(int c);
-void sbi_console_putchar(unsigned char ch);
-```
-以下函数原样摘自 code/libs/sbi.c：
-```c
-void sbi_console_putchar(unsigned char ch) {
-    sbi_call(SBI_CONSOLE_PUTCHAR, ch, 0, 0);
-}
-```
-
-[GUARANTEE]
-交付 cprintf → vcprintf → vprintfmt → cputch → cons_putc → sbi_console_putchar → sbi_call → ecall 的源码调用关系、参数寄存器与陷入返回解释，以及不能直接使用宿主 printf 的原因。
-
-[SPECIFICATION]
-## 输出功能分析
-Pre-Condition：读取 stdio.c、printfmt.c、console.c、sbi.c，结合 T2 的固件调试记录和本次反汇编。
-Post-Condition：解释变参、回调与计数，在 S 态完成格式化，在当前固件配置下通过 S 态 ecall 进入 M 态；a7=1，a0 为字符；OpenSBI 最终输出，返回后继续内核执行。
-Case 1：编译优化内联 vcprintf 或 sbi_call 时，保留源码逻辑链并标明 ELF 中不一定有独立函数符号。
-Case 2：讨论 ecall 时，区分 S→M 的 SBI 调用与 U→S 的用户系统调用；不写成任意 ecall 必然进入 M 态。
-Requirements：只说明本框架实际支持和使用的旧式 SBI console_putchar；不声称输出经过内核缓冲队列或输出计数就是硬件成功确认。
-````
-
-### 分析迭代过程
-
-按源码整理调用链后，`nm` 中找不到 `vcprintf` 和 `sbi_call`。检查编译参数和 `sbi_console_putchar` 的反汇编，确认是内联与未使用节删除，因而在报告中分别说明源码关系和实际机器码。随后用图 11 的单步记录核对陷入和返回。
-
-
-
-## 功能模块：构建与镜像加载
-
-**负责人：** 2414099－李云鹏（lyp）
-
-### 模块功能描述
+### 功能模块：构建与镜像加载
 
 执行 `make` 后，构建流程为：
 
@@ -585,67 +480,9 @@ Requirements：只说明本框架实际支持和使用的旧式 SBI console_putc
 | `bin/kernel` | ELF头、入口、程序头、装载内容和符号／调试信息 | QEMU按ELF装载，GDB读取符号 |
 | `bin/ucore.img` | 内核内容字节及地址间隙的填充，无ELF元数据 | 原框架按指定地址加载的裸镜像 |
 
-本次 `wc -c bin/ucore.img` 得到12296字节，即 `0x3008`，对应从 `0x80200000` 到 `0x80203008` 的跨度。ELF中还有头和调试信息，因此不能用它的文件大小直接表示内核占用的内存。
-
-`make qemu` 仍然依赖 `ucore.img`，会先生成两个文件，但现在实际运行的参数是：
-
-```sh
-qemu-system-riscv64 -machine virt -nographic -bios default -kernel bin/kernel
-```
-
-这个修改来自T0：原来的 loader 只复制裸镜像，而 fw_dynamic 还需要有效的下一阶段入口。`-kernel` 让QEMU按ELF装载，并把入口信息提供给OpenSBI。练习2在PC还停在 `0x1000` 时就读到了内核入口指令，说明装载发生在虚拟CPU开始执行之前；OpenSBI随后完成初始化和特权级交接。
+ `wc -c bin/ucore.img` 得到12296字节，即 `0x3008`，对应从 `0x80200000` 到 `0x80203008` 的跨度。ELF中还有头和调试信息，因此不能用它的文件大小直接表示内核占用的内存。
 
 `make debug` 多加 `-s -S`，前者开启默认1234端口的GDB服务，后者让CPU启动时暂停；`make gdb` 读取 `bin/kernel` 的符号后连接QEMU。调试自编译固件时，两端传入相同的 `OPENSBI` 路径。
-
-### 最终提示词
-
-````markdown
-[PROMPT]
-任务：分析 Makefile/function.mk 从源文件到 ELF 和裸镜像的流程，补全 T3 构建模块及验证记录。
-操作要求：直接修改真实报告文件，保留现有代码；在独立干净副本中编译运行。
-输出要求：以当前 make 规则和 readelf 结果说明产物区别，结合 T0 解释当前 QEMU 加载方式；正文集中讲代码、观察和结果，环境调用故障留在任务文件。
-
-[RELY]
-原样摘自 code/Makefile：
-```make
-KOBJS	= $(call read_packet,kernel libs)
-```
-```make
-$(UCOREIMG): $(kernel)
-	$(OBJCOPY) $(kernel) --strip-all -O binary $@
-```
-```make
-LDFLAGS	+= -nostdlib --gc-sections
-```
-
-[GUARANTEE]
-交付 .c/.S→.o→bin/kernel→bin/ucore.img 的流程、ELF 与纯二进制区别、make qemu/debug/gdb 的含义及实测运行结论。
-
-[SPECIFICATION]
-## 构建和装载分析
-Pre-Condition：已读取完整构建规则，并在已提交源码副本执行 make、readelf、make qemu。
-Post-Condition：说明 .S 先预处理、目标文件重定位后形成 ELF；objcopy 生成不含 ELF 入口/符号表的裸镜像；当前 make qemu 仍依赖生成镜像，但实际 -kernel 加载 bin/kernel。
-Case 1：看到旧式 loader 相关注释时，说明这是历史方案，不当作当前执行命令。
-Case 2：make qemu 因 kern_init 的无限循环被 timeout 停止时，记录输出与预期退出码，不把超时误判为启动失败或测试全面通过。
-Requirements：说明 lab1 缺少 tools/grade.sh，make grade 不适用；不得声称在本机验证了未运行的 QEMU 版本。
-````
-
-### 验证结果
-
-本机使用 WSL Ubuntu-22.04-OS、SiFive GCC 10.2.0、QEMU 6.2.0和OpenSBI v0.9，在已提交代码的独立副本中完成构建，并检查了ELF头、段表和符号表。运行 `timeout 8 make qemu` 得到：
-
-```text
-OpenSBI v0.9
-Domain0 Next Address      : 0x0000000080200000
-Domain0 Next Mode         : S-mode
-(THU.CST) os is loading ...
-```
-
-加载提示输出后，内核按源码进入无限循环，8秒后由 `timeout` 停止，退出码为124。框架没有 `tools/grade.sh`，Lab1不执行 `make grade`。
-
-构建分析主要依据 `Makefile`、`tools/function.mk`、`tools/kernel.ld`；输出分析依据 `stdio.c`、`printfmt.c`、`console.c`、`sbi.c`。指导书的[项目组成与执行流](http://8.135.34.58/lab2026/_book/lab1/lab1_2_2_file.html)用于核对任务范围。
-
-
 
 
 ## 拓展：现代笔记本与 RISC-V 启动流程对比
@@ -719,7 +556,7 @@ QEMU 启动后，CPU 先执行复位代码，再跳到 OpenSBI。OpenSBI 在 M �
 
 ## 对操作系统的理解
 
-**负责人：** 2414099－李云鹏（lyp）
+**负责人：** 2414099－李云鹏
 
 ### 1. 实验知识点与OS原理的对应
 
@@ -736,7 +573,7 @@ QEMU 启动后，CPU 先执行复位代码，再跳到 OpenSBI。OpenSBI 在 M �
 
 其中最容易混淆的是页对齐与分页。代码里出现 `PGSIZE=4096`，栈也按页对齐，但入口处 `satp=0`，内核没有建立页表。这里的“页”先用于描述布局粒度，还没有承担地址转换和进程隔离的作用。
 
-异常处理也要区分固件和内核。字符输出已经通过 `ecall` 触发了异常，OpenSBI负责处理；尚未实现的是内核自己的时钟中断、页故障等处理逻辑。因此，“内核还没有中断处理代码”不能写成“整个实验没有发生异常”。
+异常处理也要区分固件和内核。字符输出已经通过 `ecall` 触发了异常，OpenSBI负责处理；尚未实现的是内核自己的时钟中断、页故障等处理逻辑
 
 ### 2. 本实验没有覆盖的重要知识点
 
@@ -745,11 +582,9 @@ QEMU 启动后，CPU 先执行复位代码，再跳到 OpenSBI。OpenSBI 在 M �
 - **用户态与系统调用。** 没有加载用户程序，也没有系统调用分发、用户参数检查。现有SBI接口服务的是内核对固件的请求。
 - **内核中断与完整设备管理。** `kbd_intr`、`serial_intr`、`cons_init` 都是空函数。虽然可以经固件输出字符，内核仍没有实现设备中断、DMA、请求队列及完成通知。
 - **同步和通信。** 当前启动执行流没有使用锁、信号量或条件变量，也没有进程间通信。本次单hart运行不能验证多核并发。
-- **文件系统与持久化。** 没有文件、目录、块分配和磁盘读写管理。`ucore.img` 是裸内核镜像，不是文件系统镜像。
+- **文件系统与持久化。** 没有文件、目录、块分配和磁盘读写管理。
 
 这些内容需要在后续实验中逐步补齐。Lab1能验证的是内核已经获得控制权、具有可用的启动栈，并能通过固件输出字符；它距离能运行用户程序的操作系统还有不少工作。
-
-本节依据当前 `init.c`、`entry.S`、`console.c`、`kernel.ld` 以及T1—T3的分析。最终提示词见 prompt.md。
 
 
 ## 实验收获
