@@ -39,7 +39,7 @@ labx 分支
 
 * 成员：**openfar**、**lyp**、**nagilix**。每个人及其 agent 都以该成员的身份工作。
 * **openfar **：创建 lab 分支并初始化 `.handoff/`，指派任务，审核任务，把各 section 合并进 `report.md` 和 `prompt.md`，负责最终的 `make grade` 验证。
-* **任务由 openfar 指派**，
+* **任务由 openfar 指派**
 * 通过一个 agent 调用另一个 agent（例如在 Claude Code 里调用 Codex）时，被调用方继承调用者的身份和任务范围，同样遵守本规范。
 
 
@@ -87,7 +87,7 @@ labx 分支
 ```
 
 * 只修改**自己任务那一行的「状态」列**，需要时可以在「全组须知」里增加条目。
-* 状态只有这几种：`待开始` / `进行中` / `阻塞` / `完成`。**没有「待审」**：成员做完就直接标为「完成」。
+* 状态只有这几种：`待开始` / `进行中` / `阻塞` / `完成`。成员做完就直接标为「完成」。
 
 ## tasks/T\<n\>-\<短名\>.md
 
@@ -123,8 +123,8 @@ labx 分支
 
 * 每个任务的负责人把报告内容写在 `report/sections/T<n>-<短名>.md`，格式按 `report-template.md` 中对应的部分来写，例如「功能模块」「练习」或「Challenge」。
 * 实验目的、整体逻辑、测试与验证、实验总结这类全组共享的章节，也作为任务指派给某个人，写法相同。
-* 图片放在 `report/images/`，文件名以任务 ID 开头（例如 `T2-break-0x80200000.png`）。section 位于 `report/sections/`，图片引用写成 `../images/xxx.png`，这样在 Typora 等编辑器里打开 section 文件时能直接看到图片；openfar 合并进 report.md 时统一替换为 `./images/`。
-* `report.md` 和 `prompt.md` 由 openfar 合并编辑。
+* 图片放在 `report/images/`，文件名以任务 ID 开头（例如 `T2-break-0x80200000.png`）。section 位于 `report/sections/`。
+* `report.md` 和 `prompt.md` 由 openfar 合并编辑
 
 
 
@@ -161,12 +161,7 @@ labx 分支
 
 * 每取得一次有意义的进展，以及每次 session 结束前，都要更新自己的任务文件（进度、下一步、验证结果、迭代素材），在节点处整理提示词（见「提示词整理」）和看板上自己的状态，然后 commit 并 push。
 * 修改了其他任务依赖的接口或文件时，要在「全组须知」里写明。
-* **完成即标记「完成」，openfar 默认审核。** 成员做完任务后直接把状态标为「完成」，不需要等审核。openfar 会审核所有提交的内容：
-  * 错误少、容易改的，openfar 直接修正，并在该任务文件的「留言」区说明改了什么；
-  * 需要较大改动的，openfar 通过飞书通知负责人，由负责人返工后再次标为「完成」。
-  * 已经合并进 report.md 之后又修改 section 的，要在 T5（集成任务）的留言区说明改了哪些部分，方便 openfar 同步到 report.md。
 * 定时进行测试
-
 * 当自己的工作全部完成or被阻塞时，使用飞书CLI（send as user) 向其他人/被阻塞的工作的负责人 （lyp aka 李云鹏 2414099）/（openfar aka 张远 2411264) / （nagilix aka 刘昀皓 2413074）发送消息，通知当前进度（lab DDL， 自己做了什么，对方需要做什么...），每次发送信息时表明自己的bot身份。
 
 ## 定时反推prompt
