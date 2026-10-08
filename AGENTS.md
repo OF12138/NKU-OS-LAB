@@ -28,7 +28,7 @@ labx 分支
 
 该课程提供了网页教程以及Q&A答疑平台等资源
 
-* 实验指导书网址：  http://8.135.34.58/lab2026/_book/ ，经常更新，可以使用claude-in-chrome查看。**通常实验要求就在指导书中。**
+* 实验指导书网址：  http://oslab.mobisys.top/lab2026/_book/，经常更新，可以使用claude-in-chrome查看。**通常实验要求就在指导书中。**
 * 实验答疑平台： https://nankai.feishu.cn/docx/VgvqdhoIxotMuBxaYdWc6NhDnWg?from=from_copylink 可以尝试使用飞书CLI进行访问。
 * 前辈参考资料: 在目录 reference/ 下。只能参考不能抄袭。
 * 其他课程动态通常在微信群聊中发布，可以询问用户。
