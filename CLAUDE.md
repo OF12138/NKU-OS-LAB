@@ -33,12 +33,9 @@
 ## 画图
 
 * 风格：传统工科风格，黑白、不用彩色，矩形用尖角（直角），不用圆角。中文用宋体（SimSun），西文用 Times New Roman，地址用 Consolas。
-* 用 matplotlib 画图时使用 conda 环境 FCOS（`D:\Applications\Anaconda\envs\FCOS\python.exe`）。base 环境的 numpy/matplotlib 会崩溃（0xc06d007e），其他环境的 matplotlib 可能也有问题。
 * 示例脚本：`.claude/tools/diagram-example.py`（lab1 启动流程图）。SimSun 中没有 `⋮` 这类特殊符号，需要改用图形元素绘制。
 
 ## 用户偏好
-
-* **工作方式**：代码和报告主要由 agent 完成，组员负责审阅、理解和学习。所以产出要便于人读懂、便于核实（给出依据和实测数据）；成员的 agent 会自己读 AGENTS.md，规则变更不需要另外通知成员。
 
 * 用户本地有未提交的修改（学习注释、报告润色等）时，检查没有大问题就**直接提交，不用询问**。代码改动要先确认编译通过、`make qemu` 正常；只加注释时可以比较 `.text` 段
 
