@@ -55,6 +55,7 @@
 * `python .claude/tools/merge-report.py --fill`：只把已提交的 section 填进“【待补】”占位处，其余文字不动，然后重新编号全文图号；prompt.md 只追加尚未收录的提示词。
 * `python .claude/tools/merge-report.py --replace <section 文件> "<起始标题>" "<结束标题>" [...]`：成员在合并后又修改了 section 时，用它把 report.md 中对应的那一段换成新版（可以一次给多组，每组 3 个参数），其余部分不动；同时统一格式（`../images/`→`./images/`、`<img ...>`→`![]()`、`<center>`→`<p align="center">`），并重新编号全文图号。运行前先确认 report.md 没有用户未提交的修改。
 * `python .claude/tools/merge-report.py --prompts`：用各 `*.prompt.md` 的当前内容刷新 prompt.md 中已有的段落。
+* 功能模块 section 的「最终提示词」处写 `<!-- include:T<n>-xxx.prompt.md -->`，merge-report.py（init/fill/replace）会展开成 ````markdown 代码块，提示词只维护一份。
 * `python .claude/tools/check-rely.py`：逐行检查各提示词 [RELY] 中的代码是否仍在 code/ 中（比较时忽略注释），标注“修改前”的引文会跳过。
 
 ## 报告写法
