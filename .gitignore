@@ -2,6 +2,5 @@ bin/
 obj/
 .gdb.in
 .qemu.out
-.claude/tools/
 reference/
 report/*.pdf
