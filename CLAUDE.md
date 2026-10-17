@@ -10,14 +10,17 @@
 ## 环境
 
 * Claude Code 运行在 Windows 上，编译和调试通过 `wsl -e bash -c '...'` 在 WSL Ubuntu 中进行。WSL 的 bash 是非交互式的，不会读取 `.bashrc`，需要手动设置 PATH：`export PATH=$HOME/Environment/riscv/riscv-elf-toolchains/bin:$PATH`。
-* 本机 QEMU：`/usr/bin/qemu-system-riscv64` 8.2.2，自带 OpenSBI v1.3（fw_dynamic）。OpenSBI 的 ELF 位于 `/usr/share/qemu/opensbi-riscv64-generic-fw_dynamic.elf`，没有符号表。
+* **lab2 起统一用 QEMU 4.1.1**（见 AGENTS.md「实验环境」）：`~/Environment/qemu-4.1.1/riscv64-softmmu/qemu-system-riscv64`，带调试信息（`--enable-debug`），自带 OpenSBI v0.4。WSL 命令里要手动 `export QEMU=<该路径>`（非交互 bash 不读 .bashrc）。在 Ubuntu 24.04 / gcc 13 / Python 3.12 上用 `setup-qemu-4.1.1.sh` 编译通过（只有 tracetool 的 SyntaxWarning，无害）。
+* 系统自带的 `/usr/bin/qemu-system-riscv64` 是 8.2.2（OpenSBI v1.3，fw_dynamic），只在复现 lab1 的版本差异时使用；框架的 `-device loader` 加载方式在它上面不能启动内核。
+* `.claude/tools/` 已提交进仓库供组员参考（lab1 末起），改脚本时注意不要写入本机私有信息。
 * 从 Git Bash 调用 wsl 时，要加 `MSYS_NO_PATHCONV=1`，否则 `/mnt/...` 路径会被改写。
 * GDB 连接失败、报 `vMustReplyEmpty: timeout` 时，通常是 1234 端口被残留的 qemu 占用，先执行 `pkill -f qemu-system-riscv64`。
 * 引用仓库代码做实验或截图时，要用 `git archive HEAD code` 导出干净的副本：用户本地可能有未提交的学习注释，会改变源码行号。
 * **WSL 中不要直接在 `~/` 下新建临时目录。** 需要在 WSL 里编译或调试时，统一用 `.claude/tools/sync-wsl.sh [分支]` 把已提交的 code/ 同步到 `~/Code/NKU-OS-LAB/<分支>/code`。
 
-## 带符号的 OpenSBI
+## 带符号的 OpenSBI（lab1 用，对应 QEMU 8.2.2）
 
+* lab2 起改用 QEMU 4.1.1（OpenSBI v0.4），下面的 v1.3 固件和地址不再适用；需要带符号的 v0.4 时另行编译。
 * QEMU 自带的固件没有符号表。WSL 中的 `~/Code/opensbi` 是 OpenSBI **v1.3** 的源码（与 QEMU 8.2.2 自带的版本相同），已编译好，带符号的固件位于 `~/Code/opensbi/build/platform/generic/firmware/fw_dynamic.elf`。
 * 重新编译：`make PLATFORM=generic CROSS_COMPILE=riscv64-unknown-elf-`。本机 GCC 15 默认采用 C23，`bool` 会和 OpenSBI 的 typedef 冲突，所以已在该仓库 Makefile 的 CFLAGS 中加了 `-std=gnu11`（只改了这一处，没有改源码）。
 * 使用：`make debug OPENSBI=<上面的路径>`，配合 `make gdb OPENSBI=<同一路径>`（lab1 的 code/Makefile 已支持）。之后可以按函数名下断点，例如 `sbi_hart_init`、`sbi_hart_switch_mode`、`sbi_ecall_handler`、`uart8250_putc`。截图时设置 `MAKEARGS="OPENSBI=..."` 再调用 tmux-gdb.sh。
