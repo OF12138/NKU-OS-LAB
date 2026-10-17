@@ -1,1 +1,6 @@
-.claude/tools/
+bin/
+obj/
+.gdb.in
+.qemu.out
+reference/
+report/*.pdf
