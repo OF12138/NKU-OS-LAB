@@ -61,7 +61,54 @@ size_t nr_free_pages(void) {
     return pmm_manager->nr_free_pages();
 }
 
-//lab2 function1 YOUR CODE
+//lab2 function1 2411264
+
+// page_init - 根据设备树探测到的物理内存建立 Page 描述符数组，并把空闲页交给 pmm_manager
+static void page_init(void) {
+    extern char end[];  // 链接脚本提供的内核镜像结束地址（虚拟地址）
+
+    // entry.S 的启动页表把 VA 0xffffffffc0000000 映射到 PA 0x80000000，偏移是固定的
+    va_pa_offset = PHYSICAL_MEMORY_OFFSET;
+
+    uint64_t mem_begin = get_memory_base();
+    uint64_t mem_size = get_memory_size();
+    uint64_t mem_end = mem_begin + mem_size;
+    if (mem_size == 0 || mem_begin < DRAM_BASE || mem_end <= mem_begin) {
+        panic("page_init: invalid memory from DTB: base 0x%016lx, size 0x%016lx",
+              mem_begin, mem_size);
+    }
+
+    cprintf("physical memory map:\n");
+    cprintf("  memory: 0x%016lx, [0x%016lx, 0x%016lx].\n", mem_size, mem_begin,
+            mem_end - 1);
+
+    // 可管理上界：内核只能访问已映射的物理内存，上界是 KERNTOP 对应的物理地址。
+    // 注意 KERNTOP 是虚拟地址，要和物理地址 PHYSICAL_MEMORY_END（= KERNTOP - va_pa_offset）比较
+    uint64_t maxpa = mem_end;
+    if (maxpa > PHYSICAL_MEMORY_END) {
+        maxpa = PHYSICAL_MEMORY_END;
+    }
+
+    // npage 是物理页号的上界，pages[0] 对应物理页号 nbase（DRAM_BASE），所以数组长度是 npage - nbase
+    npage = maxpa / PGSIZE;
+    pages = (struct Page *)ROUNDUP((void *)end, PGSIZE);
+    if (PADDR((uintptr_t)pages) >= maxpa) {
+        panic("page_init: kernel image is beyond managed memory");
+    }
+
+    // 先把所有页标为保留：OpenSBI、内核镜像、Page 数组自身都保持这个状态，不进入空闲区
+    for (size_t i = 0; i < npage - nbase; i++) {
+        SetPageReserved(pages + i);
+    }
+
+    // Page 数组之后才是空闲物理内存；起点向上、终点向下对齐到页，只交出完整的页
+    uintptr_t freemem = PADDR((uintptr_t)(pages + (npage - nbase)));
+    uint64_t free_begin = ROUNDUP(freemem, PGSIZE);
+    uint64_t free_end = ROUNDDOWN(maxpa, PGSIZE);
+    if (free_begin < free_end) {
+        init_memmap(pa2page(free_begin), (free_end - free_begin) / PGSIZE);
+    }
+}
 
 /* pmm_init - initialize the physical memory management */
 void pmm_init(void) {

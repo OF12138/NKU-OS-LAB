@@ -8,7 +8,7 @@
 - 设计两份提示词：第一份让 AI 参考现有 ucore 物理内存管理框架，从零生成 Buddy System 分配模块并接入内核（lyp）；第二份让 AI 针对第一份生成的实现设计测试函数，检验其正确性（openfar）。
 - 不提供框架和测试函数；最终模块和测试能正常编译运行并通过。
 - 报告：提交两份提示词，说明测试覆盖了哪些核心行为和边界情况，以及这些测试为什么能有效检验实现。
-- 接入后默认分配器仍须是 best_fit（`make grade` 检查 Best-Fit），Buddy 通过编译开关启用，约定见 T0。
+- 接入后默认分配器仍须是 best_fit（`make grade` 检查 Best-Fit），Buddy 通过编译开关启用，建议做法：Makefile 中加 `PMM ?= best_fit`，经 `-DPMM_xxx` 传给编译器，`init_pmm_manager()` 用条件编译选择；`make grade` 不带参数时仍是 best_fit。
 
 ## 当前进度 / 下一步
 - 等 T1 完成后开始实现；测试部分在实现可用后由 openfar 进行。

@@ -6,8 +6,8 @@
 ## 任务看板
 | ID | 任务 | 负责人 | DDL | 状态 | 主要文件 |
 |----|------|--------|-----|------|----------|
-| T0 | 环境与框架：导入框架、统一 QEMU 4.1.1、分配器切换开关 | openfar | 10-17 | 进行中 | code/Makefile, temp/env.md |
-| T1 | 功能模块一 任务一：page_init | openfar | 10-18 | 进行中 | code/kern/mm/pmm.c, report/sections/T1-* |
+| T0 | 环境与框架：导入框架、统一 QEMU 4.1.1、分配器切换开关 | openfar | 10-17 | 完成 | code/Makefile, temp/env.md |
+| T1 | 功能模块一 任务一：page_init | openfar | 10-18 | 完成 | code/kern/mm/pmm.c, report/sections/T1-* |
 | T2 | 功能模块二 任务二：Best-Fit | lyp | 10-20 | 待开始 | code/kern/mm/best_fit_pmm.c, code/kern/mm/pmm.c, report/sections/T2-* |
 | T3 | 功能模块二 任务三：Buddy System（实现 lyp / 测试 openfar） | lyp, openfar | 实现 10-22，测试 10-23 | 待开始 | code/kern/mm/buddy_pmm.*, report/sections/T3-* |
 | T4 | Challenge：SLUB（实现 openfar / 测试 lyp） | openfar, lyp | 实现 10-22，测试 10-23 | 待开始 | code/kern/mm/slub.*, report/sections/T4-* |
@@ -22,5 +22,5 @@
 
 ## 全组须知
 - 先按 `temp/env.md` 装好 QEMU 4.1.1 并设置 `QEMU` 环境变量，再跑 `make qemu` / `make grade`。
-- 框架在 T1（page_init）和 T2（Best-Fit）完成前编译不过（`best_fit_pmm.c` 中 `nr_free` 未定义），属于正常现象。
+- page_init（T1）已完成。T2 Best-Fit 完成前框架仍编译不过（`best_fit_pmm.c` 中 `nr_free` 未定义），属于正常现象。
 - `make grade` 会把测试插到 `pmm_init()` 末尾并检查 `[Test 1] Page Init: PASS`、`[Test 2] Best-Fit: PASS`：不要改 `pmm_init` 的函数名、`pmm.c` 中的 `#include <pmm.h>`，默认管理器必须是 best_fit。

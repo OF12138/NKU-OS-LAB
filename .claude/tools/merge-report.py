@@ -20,11 +20,20 @@ PROMPT = ROOT / "report" / "prompt.md"
 ORDER = ["T0", "T1", "T2", "T3", "T4", "T5", "T6"]
 
 
+def include_prompts(text):
+    """把 section 中的 <!-- include:xxx.prompt.md --> 展开成该提示词文件的内容（功能模块的「最终提示词」）"""
+    def repl(m):
+        body = (SEC / m.group(1)).read_text(encoding="utf-8").strip()
+        body = re.sub(r"^## .*\n+", "", body, count=1)  # 去掉提示词文件自己的标题
+        return "````markdown\n" + body + "\n````"
+    return re.sub(r"<!-- include:(\S+\.prompt\.md) -->", repl, text)
+
+
 def read_sec(pattern):
     files = [f for f in sorted(SEC.glob(pattern)) if not f.name.endswith(".prompt.md")]
     if not files:
         return None
-    return "\n\n".join(f.read_text(encoding="utf-8").strip() for f in files) + "\n"
+    return "\n\n".join(include_prompts(f.read_text(encoding="utf-8").strip()) for f in files) + "\n"
 
 
 def sec(pattern, desc):
@@ -43,7 +52,7 @@ def replace_region(text, sec_file, start, end):
     """把 report.md 中从标题 start 开始、到标题 end 之前的内容替换为 sec_file 的当前内容"""
     i = text.index("\n" + start) + 1
     j = text.index("\n" + end, i) + 1
-    content = (SEC / sec_file).read_text(encoding="utf-8").strip()
+    content = include_prompts((SEC / sec_file).read_text(encoding="utf-8").strip())
     return text[:i] + content + "\n\n\n" + text[j:]
 
 

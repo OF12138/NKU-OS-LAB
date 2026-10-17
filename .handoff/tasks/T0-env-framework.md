@@ -1,5 +1,5 @@
 # T0 环境与框架
-- 负责人：openfar    DDL：10-17    状态：进行中    依赖：—
+- 负责人：openfar    DDL：10-17    状态：完成    依赖：—
 - 主要文件：code/Makefile, temp/env.md
 
 ## 要求
@@ -10,7 +10,8 @@
 ## 当前进度 / 下一步
 - [x] 导入框架（提交“T0: 导入 lab2 框架代码”）
 - [x] QEMU 4.1.1 安装脚本 `.claude/tools/setup-qemu-4.1.1.sh` 与 `temp/env.md`，本机 Ubuntu 24.04 编译通过
-- [ ] 分配器切换开关（在 T3 接入 Buddy 时一起做，约定写在这里）
+- 分配器切换开关推迟到 T3 接入 Buddy 时实现，见 T3 任务文件。
+- 最终 `make grade` 放在 T9。
 
 ## 关键决策与结论
 
