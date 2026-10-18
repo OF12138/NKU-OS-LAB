@@ -31,11 +31,36 @@ typedef uintptr_t pde_t;
  * physical page. In kern/mm/pmm.h, you can find lots of useful functions
  * that convert Page to other data types, such as physical address.
  * */
-struct Page {
-    int ref;                        // page frame's reference counter
+/*
+内核启动时，page_init 会给每一个物理页建一个 struct Page，存成数组 pages[]。
+数组下标就是物理页号，所以页的 Page 地址和它的物理地址可以互相换算
+（page2pa、pa2page，见 pmm.h）。
+*/
+struct Page 
+{
+    int ref;                        // page frame's reference counter 引用计数（被页表映射/使用了几次）
     uint64_t flags;                 // array of flags that describe the status of the page frame
-    unsigned int property;          // the num of free block, used in first fit pm manager
-    list_entry_t page_link;         // free list link
+    unsigned int property;          //空闲块的页数（只有空闲块的首页才有意义） the num of free block, used in first fit pm manager
+    list_entry_t page_link;         //用来挂到空闲链表上的"链子" free list link
+
+// Page 里嵌了一个 page_link，空闲页通过它串成链表。free_area_t 里的 free_list 是链表头（哨兵），nr_free 是空闲页总数：
+
+
+// free_list ⇄ [Page A].page_link ⇄ [Page B].page_link ⇄ ... ⇄ f
+
+// 链表里串起来的是 page_link，不是 Page 本身。这时从链表节点反推出整个 Page，就用 le2page：
+
+
+// #define le2page(le, member)  to_struct((le), struct Page, member)
+// // to_struct = (type*)((char*)ptr - offsetof(type, member))
+// 意思是：节点地址减去 page_link 在 Page 内的偏移，就得到所在 Page 的首地址。典型用法：
+
+
+// list_entry_t *le = list_next(&free_list);
+// struct Page *p = le2page(le, page_link);
+
+//这里就用到了 le2page 宏。它的作用是，给定 list_entry* le，以及 member = page_link，利用 to_struct 宏，从 le 的地址向前偏移，得到 Page 结构体的首地址，最终返回 Page*。这种技巧本质上是 “container_of” 的用法（Linux 内核里大量使用），即从结构体中的某个成员指针，反推出整个结构体指针。
+
 };
 
 /* Flags describing the status of a page frame */
@@ -54,7 +79,8 @@ struct Page {
     to_struct((le), struct Page, member)
 
 /* free_area_t - maintains a doubly linked list to record free (unused) pages */
-typedef struct {
+typedef struct 
+{
     list_entry_t free_list;         // the list header
     unsigned int nr_free;           // number of free pages in this free list
 } free_area_t;

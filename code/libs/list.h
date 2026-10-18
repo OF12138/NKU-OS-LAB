@@ -7,6 +7,7 @@
 
 /* *
  * Simple doubly linked list implementation.
+ 提供双向链表实现，供其他代码使用
  *
  * Some of the internal functions ("__xxx") are useful when manipulating
  * whole lists rather than single entries, as sometimes we already know
@@ -14,8 +15,10 @@
  * directly rather than using the generic single-entry routines.
  * */
 
-struct list_entry {
+struct list_entry  //通用的双向链表 node, 只有向前向后两个指针。
+{
     struct list_entry *prev, *next;
+    //它本身不带任何数据，是一个"侵入式链表"节点：谁想挂链表，就把它作为成员嵌进自己的结构体里。list_add、list_del、list_next 等函数只操作这两个指针
 };
 
 typedef struct list_entry list_entry_t;
@@ -29,7 +32,7 @@ static inline void list_del_init(list_entry_t *listelm) __attribute__((always_in
 static inline bool list_empty(list_entry_t *list) __attribute__((always_inline));
 static inline list_entry_t *list_next(list_entry_t *listelm) __attribute__((always_inline));
 static inline list_entry_t *list_prev(list_entry_t *listelm) __attribute__((always_inline));
-
+//下面两个函数仅在内部使用，不对外开放作为接口
 static inline void __list_add(list_entry_t *elm, list_entry_t *prev, list_entry_t *next) __attribute__((always_inline));
 static inline void __list_del(list_entry_t *prev, list_entry_t *next) __attribute__((always_inline));
 
