@@ -32,3 +32,4 @@
 `，panic() 自己会换行 → 删除。
 
 ## 留言
+- [lyp 2026-10-20] T2 将 `pmm.c:init_pmm_manager()` 默认指向 `best_fit_pmm_manager`，未修改 page_init 或框架测试；
