@@ -5,7 +5,7 @@
 Lab 2 的测试体系分为内核常态运行（`make qemu`）与自动化评分脚本（`make grade`）两套链路：
 
 1. **常态启动与自检输出（`make qemu`）**：
-   内核启动后，执行流经 `kern_entry` 进入 `kern_init`，随后调用 `pmm_init()` 完成物理内存管理器初始化、`page_init()` 探测与建立页描述符数组，并触发当前激活分配器的内置自测试函数（如 `check_alloc_pages()`）。通过串口控制台（UART）输出各阶段的初始化日志与状态标志。
+   内核启动后，执行流经 `kern_entry` 进入 `kern_init`，随后调用 [`pmm_init()`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/pmm.c#L190-L208) 完成物理内存管理器初始化、[`page_init()`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/pmm.c#L137-L188) 探测与建立页描述符数组，并触发当前激活分配器的内置自测试函数（如 `check_alloc_pages()`）。通过串口控制台（UART）输出各阶段的初始化日志与状态标志。
 
 2. **自动化评分注入与断言检查（`make grade`）**：
    评测脚本 [`code/tools/grade.sh`](file:///home/nagilix/Code/NKU-OS-LAB/code/tools/grade.sh) 通过 [`code/tools/inject.py`](file:///home/nagilix/Code/NKU-OS-LAB/code/tools/inject.py) 动态将标准评测探针注入到 [`code/kern/mm/pmm.c`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/pmm.c) 的 `pmm_init()` 函数末尾，严格比对控制台的断言输出：
@@ -32,7 +32,7 @@ Lab 2 的测试体系分为内核常态运行（`make qemu`）与自动化评分
 - `physcial memory 128M: 0x80000000 ~ 0x88000000`：表明通过 DTB 设备树正确动态获取了内存基址与范围，且受限于 `PHYSICAL_MEMORY_END = 0x88000000` 的内核安全管理边界；
 - **物理内存精确划分**（与 T1 实测数据一致）：总共 32768 页（128 MiB），其中 OpenSBI（512 页，0x80000000～0x801FFFFF）、内核镜像（7 页，0x80200000～0x80206FFF）、Page 描述符数组（320 页，0x80207000～0x80346FFF）均被严格标记为保留状态；剩余的空闲区域（31929 页，0x80347000～0x87FFFFFF）通过 `init_memmap` 完整注册进分配器；
 - `check_alloc_pages() succeeded!`：证明底层页面分配器通过了分配连续页、引用计数检查、指针换算及释放合并的基础功能自检；
-- `slub_init()`：成功初始化覆盖 16B～1024B 的 7 级通用对象缓存池，通过 `alloc_pages()` 申请底层物理页支撑小对象分配，与全局评测正交解耦。
+- [`slub_init()`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/slub.c#L236-L256)：成功初始化覆盖 16B～1024B 的 7 级通用对象缓存池，通过 [`alloc_pages()`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/pmm.h#L52) 申请底层物理页支撑小对象分配，与全局评测正交解耦。
 
 #### 2. 自动化评分测试（`make grade`）
 

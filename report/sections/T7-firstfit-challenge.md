@@ -110,6 +110,7 @@ static void default_init_memmap(struct Page *base, size_t n) {
    - 若 `free_list` 为空，直接调用 `list_add(&free_list, &(base->page_link))` 将块加入；
    - 若非空，沿链表顺序后移查找首个物理地址大于 `base`（即 `base < page`）的空闲块节点，调用 `list_add_before` 将其插入其前；
    - 若遍历至链表尾部仍未找到更大地址，则调用 `list_add` 追加到最后一个节点之后。
+5. **内核启动首次调用实测案例**：在内核 [`page_init()`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/pmm.c#L137-L188) 中，系统在默认 128 MiB 物理内存下首次调用该函数注册空闲区时，传入参数为 `base = pa2page(0x80347000)`，`n = 31929`。即剔除 OpenSBI（512 页）、内核镜像（7 页）和 Page 描述符数组（320 页）后，将剩余全部连续空闲物理空间作为初始单个连续大块挂载入 `free_list`，建立起操作系统运行时的物理内存初始状态池。
 
 #### 2.3 default_alloc_pages
 
