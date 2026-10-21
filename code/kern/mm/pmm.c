@@ -210,7 +210,8 @@ void pmm_init(void)
     cprintf("satp virtual address: 0x%016lx\nsatp physical address: 0x%016lx\n", satp_virtual, satp_physical);
 }
 
-static void check_alloc_page(void) {
+static void check_alloc_page(void) 
+{
     pmm_manager->check();
     cprintf("check_alloc_page() succeeded!\n");
 }

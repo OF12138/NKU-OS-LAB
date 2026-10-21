@@ -41,7 +41,8 @@ static inline void __list_del(list_entry_t *prev, list_entry_t *next) __attribut
  * @elm:        new entry to be initialized
  * */
 static inline void
-list_init(list_entry_t *elm) {
+list_init(list_entry_t *elm) 
+{
     elm->prev = elm->next = elm;
 }
 
