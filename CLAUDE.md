@@ -30,7 +30,8 @@
 ## 截图（终端）
 
 * 用户偏好 Windows Terminal 的现代显示效果（浅色主题），不要用 conhost 的黑底窗口。
-* 流程：先用 `.claude/tools/tmux-gdb.sh <WSL 中的 code 目录> "<gdb 命令>" ...` 在 WSL 中建好 tmux 分栏（左栏 make debug，右栏 make gdb），再在 PowerShell 中运行 `.claude/tools/capture-wt.ps1 -Out <png> -Cols 170 -Lines <行数>`。脚本会打开一个标题为 `lab1-gdb` 的 Windows Terminal 窗口，attach 到 tmux 会话，用 `PrintWindow` 截取后关闭这个窗口。
+* 流程：先用 `.claude/tools/tmux-gdb.sh <WSL 中的 code 目录> "<gdb 命令>" ...` 在 WSL 中建好 tmux 分栏（左栏 make debug，右栏 make gdb），再在 PowerShell 中运行 `.claude/tools/capture-wt.ps1 -Out <png> -Cols 170 -Lines <行数>`。脚本会打开一个 Windows Terminal 窗口（标签标题由 `-Title` 指定，默认 `ucore`；标题会出现在截图里），attach 到 tmux 会话 t2，用 `PrintWindow` 截取后关闭这个窗口。
+* 只需要单栏输出（如 `make qemu`、`make grade`）时，用 `.claude/tools/tmux-run.sh <WSL 中的 code 目录> "<命令>"` 建会话，它会自动设置 PATH 和 QEMU。
 * 截图窗口会弹出几秒，期间用户在键盘上打字会被输入进去，所以截图前要提醒用户。截完后检查画面里有没有多余字符。
 
 ## 画图
@@ -55,6 +56,7 @@
 * `python .claude/tools/merge-report.py --fill`：只把已提交的 section 填进“【待补】”占位处，其余文字不动，然后重新编号全文图号；prompt.md 只追加尚未收录的提示词。
 * `python .claude/tools/merge-report.py --replace <section 文件> "<起始标题>" "<结束标题>" [...]`：成员在合并后又修改了 section 时，用它把 report.md 中对应的那一段换成新版（可以一次给多组，每组 3 个参数），其余部分不动；同时统一格式（`../images/`→`./images/`、`<img ...>`→`![]()`、`<center>`→`<p align="center">`），并重新编号全文图号。运行前先确认 report.md 没有用户未提交的修改。
 * `python .claude/tools/merge-report.py --prompts`：用各 `*.prompt.md` 的当前内容刷新 prompt.md 中已有的段落。
+* 功能模块 section 的「最终提示词」处写 `<!-- include:T<n>-xxx.prompt.md -->`，merge-report.py（init/fill/replace）会展开成 ````markdown 代码块，提示词只维护一份。
 * `python .claude/tools/check-rely.py`：逐行检查各提示词 [RELY] 中的代码是否仍在 code/ 中（比较时忽略注释），标注“修改前”的引文会跳过。
 
 ## 报告写法
