@@ -30,7 +30,8 @@
 ## 截图（终端）
 
 * 用户偏好 Windows Terminal 的现代显示效果（浅色主题），不要用 conhost 的黑底窗口。
-* 流程：先用 `.claude/tools/tmux-gdb.sh <WSL 中的 code 目录> "<gdb 命令>" ...` 在 WSL 中建好 tmux 分栏（左栏 make debug，右栏 make gdb），再在 PowerShell 中运行 `.claude/tools/capture-wt.ps1 -Out <png> -Cols 170 -Lines <行数>`。脚本会打开一个标题为 `lab1-gdb` 的 Windows Terminal 窗口，attach 到 tmux 会话，用 `PrintWindow` 截取后关闭这个窗口。
+* 流程：先用 `.claude/tools/tmux-gdb.sh <WSL 中的 code 目录> "<gdb 命令>" ...` 在 WSL 中建好 tmux 分栏（左栏 make debug，右栏 make gdb），再在 PowerShell 中运行 `.claude/tools/capture-wt.ps1 -Out <png> -Cols 170 -Lines <行数>`。脚本会打开一个 Windows Terminal 窗口（标签标题由 `-Title` 指定，默认 `ucore`；标题会出现在截图里），attach 到 tmux 会话 t2，用 `PrintWindow` 截取后关闭这个窗口。
+* 只需要单栏输出（如 `make qemu`、`make grade`）时，用 `.claude/tools/tmux-run.sh <WSL 中的 code 目录> "<命令>"` 建会话，它会自动设置 PATH 和 QEMU。
 * 截图窗口会弹出几秒，期间用户在键盘上打字会被输入进去，所以截图前要提醒用户。截完后检查画面里有没有多余字符。
 
 ## 画图

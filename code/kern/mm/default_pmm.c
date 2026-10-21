@@ -103,9 +103,8 @@ static struct Page *default_alloc_pages(size_t n)
 {
     assert(n > 0);
     // 快速失败：全部空闲页加起来都不够 n 页
-    if (n > nr_free) {
-        return NULL;
-    }
+    if (n > nr_free) return NULL;
+    
 
     // 第一步：从链表头开始，找第一个够大（property >= n）的空闲块 —— 这就是“首次适应”
     struct Page *page = NULL;
