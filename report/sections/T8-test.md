@@ -22,10 +22,10 @@ Lab 2 的测试体系分为内核常态运行（`make qemu`）与自动化评分
 预期输出包含 OpenSBI v0.4 启动横幅、物理内存探测范围（`memory base: 0x80000000, size: 0x08000000` 即 128 MiB）、各模块初始化成功标志及测试通过提示：
 
 <p align="center">
-  <img src="./images/T8-make-qemu.png" alt="make qemu 运行截图" width="85%" />
-  <br />
-  <p align="center">图 8-1　make qemu 内核启动与自检运行输出</p>
+  <img src="../images/T8-make-qemu.png" alt="make qemu 运行截图" width="85%" />
 </p>
+
+<p align="center">图 T8-1　make qemu 内核启动与自检运行输出</p>
 
 **输出关键信息解读：**
 - `OpenSBI v0.4`：证明统一采用了 QEMU 4.1.1 内置固件，`fw_jump` 模式正常引导至 0x80200000；
@@ -39,10 +39,10 @@ Lab 2 的测试体系分为内核常态运行（`make qemu`）与自动化评分
 评测脚本在临时沙箱目录中完成源码构建、探针注入、模拟器执行及输出正则捕获，预期得分达到满分标准：
 
 <p align="center">
-  <img src="./images/T8-make-grade.png" alt="make grade 评测结果截图" width="85%" />
-  <br />
-  <p align="center">图 8-2　make grade 自动化评分结果</p>
+  <img src="../images/T8-make-grade.png" alt="make grade 评测结果截图" width="85%" />
 </p>
+
+<p align="center">图 T8-2　make grade 自动化评分结果</p>
 
 **得分项核验：**
 - `Page Init Test`：满分（通过内存边界对齐、Page 描述符数组与空闲链表挂载校验）；
