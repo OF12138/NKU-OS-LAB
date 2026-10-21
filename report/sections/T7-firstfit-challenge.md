@@ -4,7 +4,7 @@
 
 ### 1. 核心数据结构与状态标志
 
-ucore 的物理内存分配以物理页帧为基本单元（大小为 4096 字节，即 `PGSIZE`）。First-Fit（首次适应）物理内存分配器在 [`code/kern/mm/default_pmm.c`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/default_pmm.c) 中实现，其状态维护依赖 [`code/kern/mm/memlayout.h`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/memlayout.h) 中定义的两个核心数据结构：[`struct Page`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/memlayout.h#L34-L39) 与 [`free_area_t`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/memlayout.h#L57-L60)。
+ucore 的物理内存分配以物理页帧为基本单元（大小为 4096 字节，即 `PGSIZE`）。First-Fit（首次适应）物理内存分配器在 `code/kern/mm/default_pmm.c` 中实现，其状态维护依赖 `code/kern/mm/memlayout.h` 中定义的两个核心数据结构：`struct Page` 与 `free_area_t`。
 
 #### 1.1 数据结构定义与关键字段说明
 
@@ -26,12 +26,12 @@ typedef struct {
 
 | 结构体 / 字段 / 宏 | 类型 / 掩码 | 语义与生命周期约定 |
 | :--- | :--- | :--- |
-| [`free_area_t.free_list`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/memlayout.h#L58) | `list_entry_t` | 双向循环链表头。**链表中仅链接每个连续空闲物理块的首页（Head Page）的 `page_link`**，且所有空闲块严格按物理地址升序排列。 |
-| [`free_area_t.nr_free`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/memlayout.h#L59) | `unsigned int` | 记录全局可用空闲物理页总数。在分配时扣减，在释放及初始化时累加。 |
+| `free_area_t.free_list` | `list_entry_t` | 双向循环链表头。**链表中仅链接每个连续空闲物理块的首页（Head Page）的 `page_link`**，且所有空闲块严格按物理地址升序排列。 |
+| `free_area_t.nr_free` | `unsigned int` | 记录全局可用空闲物理页总数。在分配时扣减，在释放及初始化时累加。 |
 | `PG_reserved` | `flags` 第 0 位 | 保留页标志。若为 1，表示该页保留给内核静态代码段、数据段、OpenSBI 固件或 Page 数组本身，不可用于动态分配与释放。 |
 | `PG_property` | `flags` 第 1 位 | 连续空闲块首页标志。**若且仅若该 Page 是某个连续空闲物理块的首个页面时，该位置为 1**；块内部后续页面以及已被分配的页面该位必须保持为 0。 |
-| [`struct Page.property`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/memlayout.h#L37) | `unsigned int` | 记录以当前 Page 为首的连续空闲页块所包含的页面总数 $N$。该字段仅在 `PG_property` 为 1 的首页有效；块内其余 $N-1$ 个页面的 `property` 均重置为 0。 |
-| [`struct Page.page_link`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/memlayout.h#L38) | `list_entry_t` | 双向链表连接件。通过宏 [`le2page(le, page_link)`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/memlayout.h#L53-L54) 使用 `to_struct` 计算出宿主 [`struct Page`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/memlayout.h#L34-L39) 的起始地址。 |
+| `struct Page.property` | `unsigned int` | 记录以当前 Page 为首的连续空闲页块所包含的页面总数 $N$。该字段仅在 `PG_property` 为 1 的首页有效；块内其余 $N-1$ 个页面的 `property` 均重置为 0。 |
+| `struct Page.page_link` | `list_entry_t` | 双向链表连接件。通过宏 `le2page(le, page_link)` 使用 `to_struct` 计算出宿主 `struct Page` 的起始地址。 |
 
 #### 1.2 空闲链表组织结构图解
 
@@ -53,11 +53,11 @@ free_area.free_list (哨兵节点)
 
 ### 2. 四个核心函数执行流程剖析
 
-First-Fit 分配器的完整生命周期由 [`code/kern/mm/default_pmm.c`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/default_pmm.c) 中的四个函数驱动，具体执行流如下：
+First-Fit 分配器的完整生命周期由 `code/kern/mm/default_pmm.c` 中的四个函数驱动，具体执行流如下：
 
 #### 2.1 default_init
 
-[`default_init`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/default_pmm.c#L11-L15) 负责分配器私有状态的初态构建：
+`default_init` 负责分配器私有状态的初态构建：
 
 ```c
 static void default_init(void) {
@@ -71,7 +71,7 @@ static void default_init(void) {
 
 #### 2.2 default_init_memmap
 
-[`default_init_memmap`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/default_pmm.c#L17-L43) 在系统启动探测到物理内存区间后，由 [`page_init`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/pmm.c#L67-L111) 调用，将基地址为 `base`、长度为 $n$ 的连续可用物理页初始化为空闲块并接入管理：
+`default_init_memmap` 在系统启动探测到物理内存区间后，由 `page_init` 调用，将基地址为 `base`、长度为 $n$ 的连续可用物理页初始化为空闲块并接入管理：
 
 ```c
 static void default_init_memmap(struct Page *base, size_t n) {
@@ -110,11 +110,11 @@ static void default_init_memmap(struct Page *base, size_t n) {
    - 若 `free_list` 为空，直接调用 `list_add(&free_list, &(base->page_link))` 将块加入；
    - 若非空，沿链表顺序后移查找首个物理地址大于 `base`（即 `base < page`）的空闲块节点，调用 `list_add_before` 将其插入其前；
    - 若遍历至链表尾部仍未找到更大地址，则调用 `list_add` 追加到最后一个节点之后。
-5. **内核启动首次调用实测案例**：在内核 [`page_init()`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/pmm.c#L137-L188) 中，系统在默认 128 MiB 物理内存下首次调用该函数注册空闲区时，传入参数为 `base = pa2page(0x80347000)`，`n = 31929`。即剔除 OpenSBI（512 页）、内核镜像（7 页）和 Page 描述符数组（320 页）后，将剩余全部连续空闲物理空间作为初始单个连续大块挂载入 `free_list`，建立起操作系统运行时的物理内存初始状态池。
+5. **内核启动首次调用实测案例**：在内核 `page_init()` 中，系统在默认 128 MiB 物理内存下首次调用该函数注册空闲区时，传入参数为 `base = pa2page(0x80347000)`，`n = 31929`。即剔除 OpenSBI（512 页）、内核镜像（7 页）和 Page 描述符数组（320 页）后，将剩余全部连续空闲物理空间作为初始单个连续大块挂载入 `free_list`，建立起操作系统运行时的物理内存初始状态池。
 
 #### 2.3 default_alloc_pages
 
-[`default_alloc_pages`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/default_pmm.c#L45-L73) 实现连续物理页的首次适应查找与切分分配：
+`default_alloc_pages` 实现连续物理页的首次适应查找与切分分配：
 
 ```c
 static struct Page * default_alloc_pages(size_t n) {
@@ -158,7 +158,7 @@ static struct Page * default_alloc_pages(size_t n) {
 
 #### 2.4 default_free_pages
 
-[`default_free_pages`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/default_pmm.c#L75-L123) 负责将一段连续物理内存块归还给分配器，并自动完成与前后相邻物理空闲块的双向合并：
+`default_free_pages` 负责将一段连续物理内存块归还给分配器，并自动完成与前后相邻物理空闲块的双向合并：
 
 ```c
 static void default_free_pages(struct Page *base, size_t n) {
@@ -235,6 +235,11 @@ static void default_free_pages(struct Page *base, size_t n) {
    - 后续的大块分配每次都必须遍历跳过链表前端的大量碎片，进一步加剧分配延迟。
 3. **缺乏尾部边界标记导致的前向合并复杂度**：
    - 当前合并依赖将节点插入链表后，通过 `list_prev` 和 `list_next` 校验邻接性。若脱离有序链表，向前合并无法在 $O(1)$ 时间内知道前一个物理页是否空闲以及其所属块的大小。
+4. **尾插分支的正确性缺陷**（李云鹏在实现 Best-Fit 时发现，张远实测确认）：
+   - `default_init_memmap` 和 `default_free_pages` 的插入循环中，`else if (list_next(le) == &free_list)` 分支执行 `list_add(le, &(base->page_link))` 后**没有 `break`**。新块被追加到表尾后，循环的下一轮 `le` 正好指向新块自己，条件 `list_next(le) == &free_list` 再次成立，于是执行 `list_add(base, base)`，把 `base->page_link.prev` 改成了指向自己。
+   - 后果：紧接着的“向前合并”取到的前驱是 `base` 自己，`p + p->property == base` 不成立，**与前一个空闲块的合并被漏掉**；而且链表的 `prev` 指针已经损坏，之后再对这个节点 `list_del` 会让前驱的 `next` 悬空。
+   - 实测：在临时副本中切换到 `default_pmm_manager`，先取走全部空闲页，再依次释放 `[arena, arena+4)` 和紧邻其后的 `[arena+4, arena+8)`。正确结果应是合并成一个 8 页的块，实际输出为 `blocks=2 first.property=4`，且第二个块的 `prev` 指向自身。
+   - 内核启动时链表为空或只插入一次，`default_check()` 也没有覆盖“紧邻表尾块的释放”，所以这个缺陷不会在 `make qemu` 中暴露。修复方法很简单：在 `list_add` 之后加 `break`，或者像 Best-Fit 的实现那样先定位后继、再在循环外插入一次。
 
 #### 3.2 优化与改进方案
 
@@ -259,7 +264,7 @@ static void default_free_pages(struct Page *base, size_t n) {
 | **Next-Fit (循环首次适应)** | $O(N)$（平均较低） | $O(N)$ | 极低（仅增一个游标指针） | 中等（碎片均匀分散） |
 | **Best-Fit (最佳适应链表)** | $O(N)$ 遍历全链表 | $O(N)$ 插入查找 | 极低 | 差（产生极多不可用微碎片） |
 | **红黑树索引分配器** | $O(\log N)$ | $O(\log N)$ | 中等（每个块需维护红黑树指针） | 较好 |
-| **Buddy System (伙伴系统)** | $O(K) \approx O(1)$ | $O(K) \approx O(1)$ | 较低（按阶链表数组） | 极优（无外部碎片，但有内部碎片） |
+| **Buddy System (伙伴系统)** | $O(K) \approx O(1)$ | $O(K) \approx O(1)$ | 较低（按阶链表数组） | 较好（只有互为伙伴的块才能合并，仍会产生外部碎片；请求向上取整到 2 的幂，内部碎片较大） |
 
 ---
 
@@ -304,7 +309,7 @@ static void default_free_pages(struct Page *base, size_t n) {
 
 **实现机制与调用链：**
 1. **约定传参**：根据 RISC-V SBI 规范，在固件完成硬件初始化并跳转至内核入口时，将通用寄存器 `a0` 存入当前 CPU 的 Hart ID，将寄存器 `a1` 存入设备树二进制文件（Device Tree Blob, DTB）在物理内存中的基地址指针。
-2. **内核解析**：内核在早期引导阶段（如 [`code/kern/mm/pmm.c:page_init`](file:///home/nagilix/Code/NKU-OS-LAB/code/kern/mm/pmm.c#L67-L111)）调用 `get_memory_base()` 和 `get_memory_size()`。
+2. **内核解析**：内核在早期引导阶段（如 `code/kern/mm/pmm.c:page_init`）调用 `get_memory_base()` 和 `get_memory_size()`。
 3. **节点检索**：底层驱动解析 FDT 格式数据，遍历根路径下的 `/memory` 节点，提取其中的 `reg` 属性。该属性包含一组或多组 `(base, size)` 元组，精确声明了物理 RAM 的起始基地址和有效长度。
 4. **范围截断与过滤**：内核读取后与虚拟映射范围上限（如 `PHYSICAL_MEMORY_END = 0x88000000`）取交集，并剔除自身镜像与固件占据的区间。
 

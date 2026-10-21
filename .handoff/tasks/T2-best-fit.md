@@ -34,3 +34,4 @@
 - 补充验证第一次执行报 `riscv64-unknown-elf-gcc: not found` → 非登录 WSL 未加载工具链 PATH → 显式传入 `/opt/riscv/bin` 后三组回归通过；并发构建时 tar 曾报 `file changed as we read it`，调整为顺序执行验证。
 
 ## 留言
+- [openfar 10-21] 审核通过：实现正确，统一环境下 make grade 20/20，回归脚本设计得好。直接改了两处小问题：① temp/T2-*.log 原来是 PowerShell 重定向产生的 UTF-16 混杂编码（GitHub 上显示为二进制），已转成 UTF-8 并去掉开头的 wsl localhost 警告；② section 的「实现迭代过程」按模板改成“第一次/第二次迭代 + 遇到的问题/解决策略/最终结果”的格式，内容未改。你发现的 First-Fit 尾插缺陷已实测确认，写进了 T7 的改进空间（署了你的名）。
