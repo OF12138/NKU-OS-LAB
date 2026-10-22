@@ -14,6 +14,7 @@
 - [x] 测试（lyp，10-22）：`slub_check()` 接入正常启动；覆盖尺寸、数据完整性、partial 状态转换、自定义对齐、描述符缓存、大块页数和真实 OOM。`code/tests/run_slub_tests.py` 在临时副本运行 4 次正常启动、6 次预期 panic，全部通过。
 - [x] `T4-slub-test.prompt.md` 已完成；T4 section 补齐测试设计、覆盖理由、实测结果、复现命令与真实迭代；提示词一同步补充溢出约束。[RELY] 引用检查通过。
 - 下一步：openfar 在 T9 合并 section 和两份提示词；nagilix 可将 T4 日志引用到 T8 的公共验证章节。
+- 交付提交 `22a1a6e` 已推送 `origin/lab2`。已按 user 身份发送飞书交接并标明“lyp 的 Codex 助手代发”：openfar 消息 `om_x100b62aeb11c78b8ce3c14edda3ffa1`，nagilix 消息 `om_x100b62af4ec1e484cf4bdbbdc3032cf`；已说明 10-26 总截止、测试结果及 T9/T8 后续事项。
 
 ## 关键决策与结论
 - SLUB 不是 pmm_manager：第一层直接用 alloc_pages()/free_pages()（默认 Best-Fit），不影响 make grade。
