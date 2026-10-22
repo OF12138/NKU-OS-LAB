@@ -1,5 +1,5 @@
 # T3 功能模块二 任务三：Buddy System 分配算法
-- 负责人：lyp（实现）、openfar（测试）    DDL：实现 10-22，测试 10-23    状态：进行中    依赖：T1
+- 负责人：lyp（实现）、openfar（测试）    DDL：实现 10-22，测试 10-23    状态：完成    依赖：T1
 - 主要文件：code/kern/mm/buddy_pmm.*, report/sections/T3-*
 
 ## 要求
@@ -14,7 +14,7 @@
 - [x] lyp：Buddy 实现、PMM 编译开关、启动自检、SLUB 兼容冒烟、默认评分验证已完成（2026-10-21）。
 - [x] lyp：`report/sections/T3-buddy.md`、`T3-buddy.prompt.md` 已完成；引用检查通过。
 - [x] lyp（10-22）：参照 T4 润色报告，补充初始化、分裂与合并的连贯说明及示例；按用户后续要求，将实现方验证压缩为编译启动、自检、默认功能回归三项，移除 SLUB 冒烟测试说明，T3 不再安排该项测试；提示词一同步更新。此前已完成的冒烟结果保留在下方作为历史记录。
-- [ ] openfar（10-23）：独立测试及 `T3-buddy-test.prompt.md`，补齐 section 最后一节的覆盖理由和实测结果。
+- [x] openfar（10-22）：独立测试 `code/kern/mm/buddy_test.c`（`make PMM=buddy` 时由 kern_init 调用）、提示词二 `T3-buddy-test.prompt.md`、section 最后一节（覆盖说明、变异测试、实测结果）已完成。
 - 已通过飞书 CLI 以 user 身份通知张远，开头标明“lyp 的 Codex 助手代发”，说明 10-26 总截止、10-23 测试交接和本地改动尚未推送；消息 ID `om_x100b62ba5f8fbca4cef91e89c634445`。
 - 用户要求不 commit / push；保留现有 Best-Fit 学习注释。实现完成后交由 openfar 独立测试并撰写提示词二。
 - 本次报告润色按用户要求不发送飞书；`git pull --rebase` 因已有未提交改动未执行成功，保留工作区现状。
@@ -26,6 +26,7 @@
 - 交接接口为 `buddy_pmm_manager` 的标准六个回调；`BUDDY_MAX_ORDER=15`。启动的 `.check` 是实现方自检，openfar 可扩充它或增加独立测试，不要复用只允许 Best-Fit 的 T2 测试。
 
 ## 验证结果
+- openfar 独立测试（10-22）：`make PMM=buddy qemu` 128 MiB / 64 MiB 均输出 `[BUDDY] all tests passed`，日志 `temp/T3-buddy-test.log`；变异测试 8/8 被发现，日志 `temp/T3-buddy-mutation.log`；默认 `make grade` 20/20。
 - 改动前 QEMU 4.1.1 下 `make grade` 为 20/20，日志 `temp/T3-baseline-grade.log`。
 - `make PMM=buddy` 编译、启动成功；`buddy: check passed (31929 free pages)`，随后 SLUB 正常初始化，日志 `temp/T3-buddy-{make,qemu}.log`。
 - 不 clean 执行 `make` 会重编译 pmm.c，默认启动确认为 Best-Fit；日志 `temp/T3-switch-default-{make,qemu}.log`。
@@ -35,6 +36,9 @@
 - 10-22 文档润色：逐项核对 Buddy 实现及既有日志；`python .claude/tools/check-rely.py`、提示词 include 路径检查和 `git diff --check` 均通过。相关代码与 T4 文稿的文件哈希未变，本轮未重新执行内核测试。
 
 ## 迭代素材
+- [openfar] 测试区的伙伴可能是区外空闲块，合并会越出测试区、地址无法预测 → 测试前先借出其余全部空闲页，借出总数顺便核对空闲计数。
+- [openfar] 初版用 KADDR 写内存，框架导入时该宏被注释，[RELY] 无法只依赖框架 → 改用 page2pa + va_pa_offset。
+- [openfar] 首轮变异测试中 M5 被 SLUB 自测先拦下、M7 在本测试前停住无输出 → 变异时同时关闭 slub_check 后重跑，8 种全部由 buddy_test 发现。
 - 参考资料的树数组只覆盖最多 2048 页，当前空闲区约 31929 页 → 不能照搬固定规模限制 → 按阶链表登记所有完整页，不截断、不为树额外占页。
 - 检查 SLUB 调用发现大块释放传原请求页数 → Buddy 实际分配页数会向上取整 → 首页保留实际块长，free 同样取整并验证整块。
 - 原 Makefile 不跟踪 PMM 编译选项，存在切换后复用旧管理器对象的隐患 → 新增互斥模式标记，pmm.o 显式依赖当前标记；不 clean 切换实测通过。

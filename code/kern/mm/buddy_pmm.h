@@ -11,4 +11,7 @@
 // 空闲/已分配块的首页 property 均记录实际页数，PG_property 仅标记空闲首页。
 extern const struct pmm_manager buddy_pmm_manager;
 
+// lab2 2411264：Buddy 独立测试（buddy_test.c），仅在当前管理器为 Buddy 时由 kern_init 调用
+void buddy_test(void);
+
 #endif /* !__KERN_MM_BUDDY_PMM_H__ */

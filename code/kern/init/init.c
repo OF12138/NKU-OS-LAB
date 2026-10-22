@@ -5,6 +5,7 @@
 #include <string.h>
 #include <dtb.h>
 #include <slub.h>
+#include <buddy_pmm.h>
 
 int kern_init(void) __attribute__((noreturn));
 void grade_backtrace(void);
@@ -43,6 +44,10 @@ int kern_init(void)
     pmm_init();  // init physical memory management
     slub_init(); // 在页分配器之上建立 SLUB 对象分配器（Challenge）
     slub_check(); // lab2 2414099：验证对象分配、释放和页面回收
+    // lab2 2411264：Buddy 独立测试。按运行时的管理器判断，不用 PMM_buddy 宏，免 clean 切换时 init.o 不会重编
+    if (pmm_manager == &buddy_pmm_manager) {
+        buddy_test();
+    }
 
     /* do nothing */
     while (1)
