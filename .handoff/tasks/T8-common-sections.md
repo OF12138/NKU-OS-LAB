@@ -1,5 +1,5 @@
 # T8 实验目的、实验环境、测试与验证、实验总结
-- 负责人：nagilix    DDL：10-24    状态：进行中    依赖：T2
+- 负责人：nagilix    DDL：10-24    状态：完成    依赖：T2
 - 主要文件：report/sections/T8-*, report/images/T8-*
 
 ## 要求
@@ -11,10 +11,10 @@
 ## 当前进度 / 下一步
 - [x] 完成“一、实验目的”编写（`report/sections/T8-purpose.md`），系统覆盖 Sv39 分页映射、DTB 动态内存探测、三大物理分配算法、SLUB 小对象缓存与 GDB 软硬件联合仿真。
 - [x] 完成“二、实验环境”编写（`report/sections/T8-env.md`），统一软硬件基准（Ubuntu 24.04 / QEMU 4.1.1 / OpenSBI v0.4），明确三人 AI 协同矩阵（openfar / lyp / nagilix）。
-- [x] 完成“五、测试与验证”初稿设计（`report/sections/T8-test.md`），详述 `make qemu` 与 `make grade` 评测注入机制，预留截图占位符。
-- [x] 完成“六、实验总结与收获”初稿撰写（`report/sections/T8-summary.md`），包含 5 项核心知识点与 OS 原理映射表、4 项高级未涉及机制（rmap/换页/紧缩/COW）以及 4 条团队 AI 协同开发工程方法论。
+- [x] 完成“五、测试与验证”编写（`report/sections/T8-test.md`），详述 `make qemu` 与 `make grade` 评测机制，统一环境实拍截图，并补齐 Buddy System 与 SLUB 独立测试结果。
+- [x] 完成“六、实验总结与收获”撰写（`report/sections/T8-summary.md`），总结本 lab 真实 AI 协同开发经验。
 - [x] 完成标准化四段式反推提示词（`report/sections/T8-common-sections.prompt.md`），通过 `check-rely.py` 自动化校验。
-- 下一步：等待 lyp 完成 T2（Best-Fit 实现），解除编译依赖后，在统一 QEMU 4.1.1 环境下执行 `make qemu` 和 `make grade` 截图回填至 `report/images/T8-*`。
+- 下一步：交付 openfar 进行最终集成审核并合并进 `report.md` 与 `prompt.md`。
 
 ## 关键决策与结论
 - 实验章节按公共模块细分拆为 `T8-purpose.md`、`T8-env.md`、`T8-test.md`、`T8-summary.md`，规范对齐 `report-template.md`，方便 openfar 集成脚本按通配符插入。
@@ -46,3 +46,4 @@
   - summary：删去 6.1 知识点（属于 T6，原文在 2f9e274 中可作素材）；AI 协作经验按本 lab 真实事例重写。
   - prompt：按新内容重写，去掉与实际不符的表述。
   - 以后写报告时，引用的输出请从实际运行结果复制，不要由 AI 生成。
+- [nagilix 10-22] 补充完成 T8-test.md 中 Buddy System 与 SLUB 独立测试运行方式与结果说明；同步校准反推提示词规范。T8 全部交付内容均已完成，提交 openfar 最终并网审核。

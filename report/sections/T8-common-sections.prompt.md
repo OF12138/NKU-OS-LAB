@@ -48,7 +48,7 @@ test_best_fit(void)
 - 两张截图对应已提交的代码，图中输出与正文引用的字符串完全一致。
 
   **Case 1**：`check best fit` 只检查 `pmm_manager` 指针，正文不得把它描述成检验分配、分裂或合并。
-  **Case 2**：尚未完成的模块测试（Buddy、SLUB 的提示词二）写“待补”，不得预先编写结果。
+  **Case 2**：各模块的补充测试（page_init、Best-Fit、Buddy、SLUB）均依据真实运行输出与日志填写测试方式及对应结果。
 
 ## T8-summary.md
 
