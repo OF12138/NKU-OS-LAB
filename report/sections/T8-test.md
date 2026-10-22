@@ -10,12 +10,12 @@
 
 - `OpenSBI v0.4`：QEMU 4.1.1 自带的固件，完成 M 态初始化后跳转到 0x80200000 的内核入口。
 - `DTB Init` … `DTB init completed`：`dtb_init()` 从 OpenSBI 传来的设备树（地址 0x82200000）中读出物理内存：起始 0x80000000，大小 128 MB。
-- `Special kernel symbols`：内核各段的结束地址都是 `0xffffffffc02…` 开头的高地址，说明 entry.S 已经开启 Sv39，内核运行在虚拟地址上；`end = 0xffffffffc0206140` 对应物理地址 0x80206140。
+- `Special kernel symbols`：内核各段的结束地址都是 `0xffffffffc02…` 开头的高地址，说明 entry.S 已经开启 Sv39，内核运行在虚拟地址上；`end = 0xffffffffc0209a60` 对应物理地址 0x80209a60。
 - `memory management: best_fit_pmm_manager`：当前的页分配器是 Best-Fit（练习“Best-Fit”）。
 - `physical memory map` 一行由 `page_init()` 打印，范围与设备树一致（功能模块一）。
 - `check_alloc_page() succeeded!`：Best-Fit 自带的 `best_fit_check()` 通过，包括分配、释放、分裂与合并的基本检查。
 - `satp virtual/physical address`：启动页表 `boot_page_table_sv39` 的虚拟地址与物理地址，两者正好相差 `va_pa_offset = 0xFFFFFFFF40000000`。
-- 最后一行由 `slub_init()` 打印，SLUB 的 7 个通用缓存建立完成（Challenge：SLUB）。
+- `slub: 7 kmalloc caches ...` 由 `slub_init()` 打印，SLUB 的 7 个通用缓存建立完成；其后的 `[SLUB] ...` 各行是 `slub_check()` 的启动自测：逐个缓存填满一个 slab 并触发新 slab 分配、检查 partial 状态转换和空 slab 回收、批量分配后释放一半再复用，以及超过 1024 字节时退回整页分配。最后打印各缓存的统计并以 `[SLUB] all checks passed` 结束（Challenge：SLUB）。
 
 ## make grade
 

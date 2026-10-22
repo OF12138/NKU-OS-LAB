@@ -15,10 +15,10 @@
 | T6 | 整体逻辑分析（openfar）；知识点与 OS 原理对应（lyp） | openfar, lyp | 10-24 | 进行中 | report/sections/T6-* |
 | T7 | 功能模块二 任务一：First-Fit 分析；功能模块一 Challenge：内存范围获取 | nagilix | 10-21 | 完成 | report/sections/T7-* |
 | T8 | 实验目的、实验环境、测试与验证、实验总结初稿 | nagilix | 10-24 | 进行中 | report/sections/T8-*, report/images/T8-* |
-| T9 | 集成：report.md、prompt.md、最终 make grade | openfar | 10-25 | 待开始 | report/report.md, report/prompt.md |
+| T9 | 集成：report.md、prompt.md、最终 make grade | openfar | 10-25 | 进行中 | report/report.md, report/prompt.md |
 
 ## 集成状态
-- make qemu ⬜   make grade ⬜   report.md 已合并 ⬜   prompt.md 已合并 ⬜
+- make qemu ⬜   make grade ⬜   report.md 已合并 ✅（10-22，缺 T5 TLB、T6 知识点，lyp 完成后 `merge-report.py --fill` 填入）   prompt.md 已合并 ✅
 
 ## 全组须知
 - T4 lyp 测试已简化为单次启动自测：各大小缓存、跨页扩展、释放复用和大对象回退通过，默认评分 20/20；报告/提示词二同步重写，日志仅保留 `temp/T4-{make,qemu,grade}.log`。T9 请采用本地新版。
