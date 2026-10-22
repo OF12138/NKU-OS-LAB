@@ -111,10 +111,8 @@ static void page_init(void)
     uint64_t mem_begin = get_memory_base(); //物理地址
     uint64_t mem_size = get_memory_size(); //由之前的 dtb.init 负责获取。
     uint64_t mem_end = mem_begin + mem_size;
-    if (mem_size == 0 || mem_begin < DRAM_BASE || mem_end <= mem_begin) 
-    {
-        panic("page_init: invalid memory from DTB: base 0x%016lx, size 0x%016lx", mem_begin, mem_size);
-    }
+    if (mem_size == 0 || mem_begin < DRAM_BASE || mem_end <= mem_begin) panic("page_init: invalid memory from DTB: base 0x%016lx, size 0x%016lx", mem_begin, mem_size);
+    
 
     cprintf("physical memory map:\n");
     cprintf("  memory: 0x%016lx, [0x%016lx, 0x%016lx].\n", mem_size, mem_begin, mem_end - 1);

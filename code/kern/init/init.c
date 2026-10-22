@@ -16,7 +16,8 @@ void print_kerninfo(void);
  * of kernel entry, the start addresses of data and text segements, the start
  * address of free memory and how many memory that kernel has used.
  * */
-void print_kerninfo(void) {
+void print_kerninfo(void) 
+{
     extern char etext[], edata[], end[];
     cprintf("Special kernel symbols:\n");
     cprintf("  entry  0x%016lx (virtual)\n", (uintptr_t)kern_init);
@@ -43,11 +44,11 @@ int kern_init(void)
     // grade_backtrace();
     pmm_init();  // init physical memory management
     slub_init(); // 在页分配器之上建立 SLUB 对象分配器（Challenge）
+    
     slub_check(); // lab2 2414099：验证对象分配、释放和页面回收
     // lab2 2411264：Buddy 独立测试。按运行时的管理器判断，不用 PMM_buddy 宏，免 clean 切换时 init.o 不会重编
-    if (pmm_manager == &buddy_pmm_manager) {
-        buddy_test();
-    }
+    if (pmm_manager == &buddy_pmm_manager)  buddy_test();
+    
 
     /* do nothing */
     while (1)

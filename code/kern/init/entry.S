@@ -43,6 +43,7 @@ kern_entry:
     or      t0, t0, t1
     # 将算出的 t0(即新的MODE|页表基址物理页号) 覆盖到 satp 中
     csrw    satp, t0
+    
     # 使用 sfence.vma 指令刷新 TLB
     sfence.vma
     # 从此，我们给内核搭建出了一个完美的虚拟内存空间！
