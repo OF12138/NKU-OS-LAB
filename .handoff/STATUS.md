@@ -21,8 +21,8 @@
 - make qemu ⬜   make grade ⬜   report.md 已合并 ⬜   prompt.md 已合并 ⬜
 
 ## 全组须知
-- T4 lyp 独立测试已完成（10-22）：启动调用 `slub_check()`，两轮正常测试及 6 个隔离 panic 通过，默认评分 20/20；修复 `kmem_cache_create` 极大尺寸对齐溢出，接口不变。T9 请合并 T4 section 与两份提示词，T8 可引用 `temp/T4-slub-tests/` 日志。
-- T3 lyp 实现与提示词一已在本地完成：`make PMM=buddy` 启用且支持免 clean 切换，默认评分仍为 20/20；请 openfar 于 10-23 完成独立测试及提示词二。本轮不 commit / push。
+- T4 lyp 测试已简化为单次启动自测：各大小缓存、跨页扩展、释放复用和大对象回退通过，默认评分 20/20；报告/提示词二同步重写，日志仅保留 `temp/T4-{make,qemu,grade}.log`。T9 请采用本地新版。
+- T3 lyp 实现与提示词一已在本地完成：`make PMM=buddy` 启用且支持免 clean 切换，默认评分仍为 20/20；请 openfar 于 10-23 完成独立测试及提示词二。
 - 先按 `temp/env.md` 装好 QEMU 4.1.1 并设置 `QEMU` 环境变量，再跑 `make qemu` / `make grade`。
 - T2 已在本地完成，默认管理器现为 Best-Fit；QEMU 4.1.1 启动正常，`make grade` 20/20，补充回归通过。用户要求不 commit / push，尚未同步到远端。
 - `make grade` 会把测试插到 `pmm_init()` 末尾并检查 `[Test 1] Page Init: PASS`、`[Test 2] Best-Fit: PASS`：不要改 `pmm_init` 的函数名、`pmm.c` 中的 `#include <pmm.h>`，默认管理器必须是 best_fit。

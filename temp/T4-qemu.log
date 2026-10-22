@@ -30,31 +30,36 @@ DTB init completed
 (THU.CST) os is loading ...
 Special kernel symbols:
   entry  0xffffffffc02000d8 (virtual)
-  etext  0xffffffffc020342c (virtual)
-  edata  0xffffffffc0208018 (virtual)
-  end    0xffffffffc0208930 (virtual)
-Kernel executable memory footprint: 35KB
+  etext  0xffffffffc020249a (virtual)
+  edata  0xffffffffc0207018 (virtual)
+  end    0xffffffffc0207930 (virtual)
+Kernel executable memory footprint: 31KB
 memory management: best_fit_pmm_manager
 physical memory map:
   memory: 0x0000000008000000, [0x0000000080000000, 0x0000000087ffffff].
 check_alloc_page() succeeded!
-satp virtual address: 0xffffffffc0207000
-satp physical address: 0x0000000080207000
+satp virtual address: 0xffffffffc0206000
+satp physical address: 0x0000000080206000
 slub: 7 kmalloc caches (16 ~ 1024 bytes), larger requests use whole pages
-[SLUB] invalid arguments and overflow: PASS
-[SLUB] sizes 1..1024 and live-object isolation: PASS
-[SLUB] full/partial/active transitions and reclaim: PASS
-[SLUB] alignment, single-object slabs and cache lifetime: PASS
-[SLUB] large boundaries, contents and page accounting: PASS
-[SLUB] real out-of-memory failure and recovery: PASS
-[SLUB] round 1: PASS (free pages 31926 -> 31919, retained 7)
-[SLUB] invalid arguments and overflow: PASS
-[SLUB] sizes 1..1024 and live-object isolation: PASS
-[SLUB] full/partial/active transitions and reclaim: PASS
-[SLUB] alignment, single-object slabs and cache lifetime: PASS
-[SLUB] large boundaries, contents and page accounting: PASS
-[SLUB] real out-of-memory failure and recovery: PASS
-[SLUB] round 2: PASS (free pages 31919 -> 31919, retained 0)
+[SLUB] basic argument checks PASS
+[SLUB] request=1 cache=16 capacity=253: filled, extra slab allocated
+[SLUB] cache=16: partial transition and empty slab reclaim PASS
+[SLUB] request=17 cache=32 capacity=126: filled, extra slab allocated
+[SLUB] cache=32: partial transition and empty slab reclaim PASS
+[SLUB] request=33 cache=64 capacity=63: filled, extra slab allocated
+[SLUB] cache=64: partial transition and empty slab reclaim PASS
+[SLUB] request=65 cache=128 capacity=31: filled, extra slab allocated
+[SLUB] cache=128: partial transition and empty slab reclaim PASS
+[SLUB] request=129 cache=256 capacity=15: filled, extra slab allocated
+[SLUB] cache=256: partial transition and empty slab reclaim PASS
+[SLUB] request=257 cache=512 capacity=7: filled, extra slab allocated
+[SLUB] cache=512: partial transition and empty slab reclaim PASS
+[SLUB] request=1024 cache=1024 capacity=3: filled, extra slab allocated
+[SLUB] cache=1024: partial transition and empty slab reclaim PASS
+[SLUB] 128 x 64B: free half, reuse, data check and reclaim PASS
+[SLUB] large 1025B: page fallback and reclaim PASS
+[SLUB] large 4096B: page fallback and reclaim PASS
+[SLUB] large 8192B: page fallback and reclaim PASS
 slub caches:
   kmem_cache     size  112  objs/slab  36  slabs   1  partial   0  inuse     7
   kmalloc-16     size   16  objs/slab 253  slabs   1  partial   0  inuse     0
@@ -64,5 +69,5 @@ slub caches:
   kmalloc-256    size  256  objs/slab  15  slabs   1  partial   0  inuse     0
   kmalloc-512    size  512  objs/slab   7  slabs   1  partial   0  inuse     0
   kmalloc-1024   size 1024  objs/slab   3  slabs   1  partial   0  inuse     0
-[SLUB] ALL TESTS PASSED
-qemu-system-riscv64: terminating on signal 15 from pid 19205 (timeout)
+[SLUB] all checks passed (retained 7 active slab pages)
+qemu-system-riscv64: terminating on signal 15 from pid 24795 (timeout)

@@ -1,52 +1,44 @@
 # T4 Challenge：任意大小内存单元的 SLUB 分配算法
 - 负责人：openfar（实现）、lyp（测试）    DDL：实现 10-22，测试 10-23    状态：完成    依赖：T1
-- 主要文件：code/kern/mm/slub.*, code/kern/mm/slub_test.c, code/tests/run_slub_tests.py, code/kern/init/init.c, report/sections/T4-*
+- 主要文件：code/kern/mm/slub.*, code/kern/mm/slub_test.c, code/kern/init/init.c, report/sections/T4-*
 
 ## 要求
-指导书原文要点：
-- 两层架构：第一层基于页大小的分配，第二层在第一层基础上实现任意大小的分配。可简化实现，体现主体思想即可。
-- 设计两份提示词：第一份让 AI 在没有现成代码框架的情况下从零生成 SLUB 模块并接入内核（openfar）；第二份让 AI 针对第一份生成的实现设计测试函数，检验不同大小对象的分配和释放（lyp）。
-- 报告：提交两份提示词，说明测试覆盖了哪些核心行为和边界情况，以及这些测试为什么能有效检验实现。
+- 两层架构：第一层基于页大小的分配，第二层在第一层基础上实现任意大小的分配；可简化，体现主体思想即可。
+- 两份提示词：openfar 实现并接入模块，lyp 独立设计不同大小对象分配与释放的测试。
+- 报告提交两份提示词，说明核心行为、边界情况及测试为什么有效。
 
 ## 当前进度 / 下一步
-- [x] 实现（openfar）：code/kern/mm/slub.h、slub.c，kern_init 中 pmm_init() 之后调用 slub_init()
-- [x] 提示词一 report/sections/T4-slub.prompt.md；section report/sections/T4-slub.md（设计、提示词一、迭代过程、冒烟验证、图 T4-slub-layout.png）
-- [x] 测试（lyp，10-22）：`slub_check()` 接入正常启动；覆盖尺寸、数据完整性、partial 状态转换、自定义对齐、描述符缓存、大块页数和真实 OOM。`code/tests/run_slub_tests.py` 在临时副本运行 4 次正常启动、6 次预期 panic，全部通过。
-- [x] `T4-slub-test.prompt.md` 已完成；T4 section 补齐测试设计、覆盖理由、实测结果、复现命令与真实迭代；提示词一同步补充溢出约束。[RELY] 引用检查通过。
-- 下一步：openfar 在 T9 合并 section 和两份提示词；nagilix 可将 T4 日志引用到 T8 的公共验证章节。
-- 交付提交 `22a1a6e` 已推送 `origin/lab2`。已按 user 身份发送飞书交接并标明“lyp 的 Codex 助手代发”：openfar 消息 `om_x100b62aeb11c78b8ce3c14edda3ffa1`，nagilix 消息 `om_x100b62af4ec1e484cf4bdbbdc3032cf`；已说明 10-26 总截止、测试结果及 T9/T8 后续事项。
+- [x] openfar：SLUB 模块、启动接入、设计图、提示词一与实现报告已完成。
+- [x] lyp：重写为一次启动的简洁自测，删除 Python 运行器和负向启动宏。
+- 测试源码由 333 行缩减至 108 行；T4 日志由 31 份收敛至 3 份。
+- [x] 测试覆盖所有七种大小缓存、填满后新 slab、partial 转换与空页回收、128 个 64B 对象释放一半再复用，以及 1025/4096/8192B 页级回退。
+- [x] 报告与提示词二已按现有测试重写；保留此前溢出修复及一条回归，清理旧测试日志，仅保留 `temp/T4-{make,qemu,grade}.log`。
+- 下一步：openfar 在 T9 合并 T4 section 与两份提示词。
 
 ## 关键决策与结论
-- SLUB 不是 pmm_manager：第一层直接用 alloc_pages()/free_pages()（默认 Best-Fit），不影响 make grade。
-- slab 固定一页，页首 48 字节 struct slab 头（magic/inuse/cache/freelist/npages/slab_link），对象地址 ROUNDDOWN 到页即得到头。
-- 每个缓存：cpu_slab（活动）+ partial 链表；满 slab 不在链表上；非活动 slab 变空立即还页，活动 slab 变空保留。
-- kmalloc：7 个通用缓存 16～1024；>1024 按页分配，页首 LARGE_MAGIC 头记页数，返回页首 +48。
-- 给测试用的接口：kmalloc_cache(size) 返回所用缓存；struct kmem_cache 的 size/objs_per_slab/nr_slabs/nr_partial/nr_inuse；slub_print_stats()。
-- 非法释放（不属于该缓存/不在对象边界/重复释放）和 kfree 非法指针都会 panic，测试这类情况时注意会停机。
-- `cache_setup()` 在 ROUNDUP 前拒绝 `size > PGSIZE` 或归一化后 `align >= PGSIZE`，避免整数回绕；现有接口及合法输入语义不变。
-- 正常启动连续测试两轮：第一轮只保留 7 个通用缓存活动页，第二轮不额外损失页数。批量描述符测试显式处理 cache_cache 的活动页保留，并最终恢复初始一页状态。
-- 页数预期按运行时 PMM 名称选择，支持免 clean 切换；负向宏变体在临时目录 clean 后构建，不影响工作区默认内核。
+- SLUB 位于页分配器之上，第一层调用 alloc_pages/free_pages，不注册成 pmm_manager；默认仍为 Best-Fit。
+- slab 固定一页，页首 48 字节头；小对象七种缓存 16～1024B，更大请求按页分配。
+- 活动 slab 变空保留；非活动 slab 变空立即还页；满 slab 不在 partial 上。测试适配本实现，不套用前辈 full/partial 的计数。
+- 每种缓存按 objs_per_slab 填满后额外申请一个对象，核对地址、容量、在用数、内容及释放结果；批量复用检查不申请新页。
+- `cache_setup()` 保留先前极大尺寸溢出修复，测试保留 SIZE_MAX 输入断言；不改实现架构及学习注释。
+- 自测由 slub_init 后调用 slub_check，一次正常 make qemu 即可。结束后七个通用缓存各留一个空活动页，其余测试页已归还。
 
 ## 验证结果
-- 临时副本冒烟测试（不进仓库）：各大小 kmalloc 落入正确缓存；600 个 64B 对象跨 10 个 slab 数据校验正确；释放后只剩活动 slab，空闲页 31926→31919（差 7 个活动 slab）；自定义 40B/16 对齐缓存步长 48；重复释放 panic。
-- 上述为 openfar 实现阶段的冒烟结果；以下为 lyp 于 2026-10-22 完成的正式验证。
-- QEMU 4.1.1/OpenSBI v0.4，改动前后默认 `make grade` 均为 20/20；日志 `temp/T4-baseline-grade.log`、`temp/T4-grade.log`。
-- `make`、`make qemu` 成功，输出 `[SLUB] ALL TESTS PASSED`；日志 `temp/T4-{make,qemu}.log`。
-- Best-Fit/Buddy × 128/64 MiB 共 4 次启动，每次两轮完整测试通过；第一轮分别恢复至 31919/15695/31918/15694 页（保留 7 页），第二轮无额外页损失。
-- 6 个隔离负向用例均匹配 `slub.c` 中预期原因；完整日志和 `summary.log` 在 `temp/T4-slub-tests/`。
-- 不 clean 按 Best-Fit→Buddy→Best-Fit 切换，三次正常启动全部通过；日志 `temp/T4-switch-*-{make,qemu}.log`。
-- `python3 .claude/tools/check-rely.py` 和 `git diff --check` 通过；`code/tools/`、Best-Fit 原始测试及 pmm.c 未改动。
+- 2026-10-22，WSL Ubuntu 22.04，QEMU 4.1.1/OpenSBI v0.4，默认 Best-Fit。
+- `make` 编译通过；`make qemu` 各项检查通过，最终输出 `[SLUB] all checks passed (retained 7 active slab pages)`。
+- 七个缓存的 nr_inuse/nr_partial 均为 0，nr_slabs 均为 1；缓存容量依次为 253/126/63/31/15/7/3。
+- `make grade` page init/Best-Fit 均为 OK，总分 20/20，与前次基线一致。
+- 日志仅保留 `temp/T4-make.log`、`temp/T4-qemu.log`、`temp/T4-grade.log`。
+- 提示词 [RELY] 引用、报告链接与 include、`git diff --check` 均通过；被测实现、原启动接口与评测代码与本轮开始时一致。
 
 ## 迭代素材
-- [lyp 2026-10-22] 自查发现测试按编译宏判断 Buddy 页数，但 Makefile 免 clean 切换只重编译 pmm.c → 测试可能仍使用旧模式 → 页数预期改为读取实际 `pmm_manager->name`，随后补做免 clean 双向切换验证。
-- [lyp 2026-10-22] 批量销毁 40 个缓存后 `nr_free_pages() == before` 断言失败 → 测试漏算 cache_cache 的空活动页保留策略，原描述符页仍有 7 个内置缓存 → 先验证合法的两页状态，再填满空活动页、提升原 partial 页并释放临时描述符，确认多余页回收；不是实现泄漏。日志 `temp/T4-descriptor-before.log`。
-- [lyp 2026-10-22] 直接 `wsl ... python3` 运行脚本报 `riscv64-unknown-elf-gcc: not found` → 未加载登录 shell 的工具链 PATH → 改从 `bash -lc` 运行，内核代码无需调整。
-- [lyp 2026-10-22] 首次边界测试触发 `assertion failed: kmem_cache_create("overflow", (size_t)-1, 8) == NULL` → `ROUNDUP(size, align)` 回绕为 0，错误接受无法容纳的缓存 → 在对齐前限定 `size <= PGSIZE`、`align < PGSIZE`，保留该用例及加法溢出/极大对齐回归；原始日志 `temp/T4-overflow-before.log`。
-- 前辈把 SLUB 注册成 pmm_manager → 会让 grade 的 Best-Fit 检查失败 → 改为页分配器之上的独立模块。
-- struct Page 无空余字段、扩充会改变 page_init 布局 → 元数据放页首；kmalloc 上限因此取 1024（2048 每页只能放 1 个）。
-- pmm.h 的 KADDR 被注释 → 自写 page2kva（pa + va_pa_offset）。
-- 编写释放路径时注意到：单对象 slab 从满直接变空，不在 partial 上，不能 list_del。
-- 画图时把 kmalloc-1024 页尾剩余算成 16B，核对后应为 976B（3×1024+48=3120）。
+- 前轮测试发现 `kmem_cache_create("overflow", (size_t)-1, 8)` 未返回 NULL → ROUNDUP 回绕为 0 → 在对齐前限定单页范围；本轮保留修复与回归，原失败日志随旧套件清理，Git 历史可查。
+- 前轮批量描述符测试把空活动页保留误认为泄漏，且加入 OOM、多配置及六次 panic 启动 → 测试与说明超出本次实验所需 → 本轮按用户要求参照前辈报告，收敛到缓存分配释放、批量复用、大对象回退。
+- 本轮首次编译、启动及评分均通过，没有新增代码失败或修复轮次。
+- 前辈把 SLUB 注册为 pmm_manager → 不适合当前 Best-Fit 评分 → 保持页分配器之上的独立模块。
+- struct Page 没有空余字段，扩充会改变布局 → 元数据放页首；2048B 每页仅一对象，因此通用缓存上限取 1024B。
+- 编写释放路径时发现单对象 slab 可从满直接变空，不在 partial 上 → 释放时通过 was_full 避免错误摘链。
 
 ## 留言
 - [lyp 2026-10-22] 已补齐独立测试与报告，并在 slub.c 做上述极大输入溢出修复、slub.h 增加测试入口、init.c 增加启动调用；openfar 的学习注释与整体架构保留。测试前后的失败证据、修复和页数策略说明见本文件及 T4 section。
+- [lyp 2026-10-22] 按用户要求完成本地简化：测试改为单次启动，提示词二和测试章节重写，旧运行器及冗余日志删除。
