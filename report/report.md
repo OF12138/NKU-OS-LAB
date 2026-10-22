@@ -60,17 +60,9 @@ Lab2 的主题是**物理内存管理**。lab1 结束时，内核只知道自己
 
 我们认为本章可以概括成一句话：**一层一层地把内存“组织”起来，每一层都只依赖下一层提供的接口。**从下到上依次是：
 
-```
-  任意大小的对象     kmalloc / kfree                         SLUB（Challenge）
-        ▲               按大小分到 7 个缓存，一个 slab 占一页
-  连续的物理页       alloc_pages / free_pages                pmm_manager：First-Fit / Best-Fit / Buddy
-        ▲               空闲块怎样组织、怎样挑选
-  每一页的描述       struct Page pages[]                      page_init
-        ▲               哪些页保留、哪些页空闲
-  物理内存的范围     get_memory_base / get_memory_size        dtb_init（框架）
-        ▲               设备树告诉内核内存从哪里开始、有多大
-  地址怎样被访问     启动页表 boot_page_table_sv39            entry.S（框架）；分支任务观察 QEMU 如何查表
-```
+![lab2 的分层结构](./images/T6-layers.png)
+
+<p align="center">图 1　lab2 物理内存管理的分层结构</p>
 
 指导书给出的实现链 `pmm_init() → init_pmm_manager() → page_init() → init_memmap() → alloc_pages()/free_pages()` 正好对应中间三层。SLUB 搭在页分配器之上，分支任务则回到最底层，看“硬件”（QEMU）怎样使用 `entry.S` 建立的页表。
 
@@ -373,23 +365,9 @@ static void page_init(void);   // code/kern/mm/pmm.c，由 pmm_init() 调用
 
 在现代 RISC-V 和 ARM 嵌入式架构中，基于设备树（Device Tree）的动态配置已成为事实上的工业标准。
 
-```
-[ Bootloader / OpenSBI (M-Mode) ]
-              |
-              | 1. 初始化平台硬件，探测 RAM
-              | 2. 将硬件拓扑编码为 DTB 二进制
-              | 3. 将 DTB 物理地址写入 a1 寄存器
-              v
-[ ucore 内核入口 (S-Mode) ]
-              |
-              | 读取 a1 寄存器，获取 DTB 基地址
-              v
-[ DTB 解析模块 (dtb.c) ]
-              |
-              | 遍历 "/memory" 节点，读取 "reg" 属性
-              v
-得到可用物理内存区间：[mem_begin, mem_begin + mem_size]
-```
+![设备树传递内存范围](./images/T7-dtb-flow.png)
+
+<p align="center">图 2　通过设备树获取物理内存范围</p>
 
 **实现机制与调用链：**
 1. **约定传参**：根据 RISC-V SBI 规范，在固件完成硬件初始化并跳转至内核入口时，将通用寄存器 `a0` 存入当前 CPU 的 Hart ID，将寄存器 `a1` 存入设备树二进制文件（Device Tree Blob, DTB）在物理内存中的基地址指针。
@@ -426,36 +404,9 @@ static void page_init(void);   // code/kern/mm/pmm.c，由 pmm_init() 调用
 
 在完全缺乏固件传参、无设备树、也无法直接读取内存控制器的极端裸机环境下，内核必须采用“主动内存探测算法”。该方案必须兼顾**破坏性规避**、**地址回卷防护**以及**总线硬件异常截断**：
 
-```
-                   [ 开始裸机探测循环 ]
-                             |
-                   probe_pa = DRAM_BASE (0x80000000)
-                   step = 1 MiB (或 4 KiB)
-                             |
-             +-------------->+
-             |               |
-             |     [ 安装临时 Trap 向量表 ] (捕获 Load/Store Fault)
-             |               |
-             |     1. 保存原内存值: old_val = *probe_pa
-             |     2. 写入测试魔数: *probe_pa = 0xAA55AA55
-             |     3. 强制内存屏障: fence / mb()
-             |     4. 回读并校验:   read_val = *probe_pa
-             |               |
-        发生硬件异常? -------+----是----> [ 触发 Trap: 达到物理内存边界 ]
-             | 否                                        |
-      read_val == 魔数?                                  |
-        /          \                                     |
-      否            是                                   |
-      /              \                                   v
-[ 探测终止 ]    5. 写入反转测试魔数: 0x55AA55AA        记录有效内存上界
-(检测到非RAM)   6. 回读校验防地址回卷 (Aliasing)       max_pa = probe_pa
-                     |                                   |
-                7. 恢复原数据: *probe_pa = old_val       v
-                     |                             [ 恢复正常系统异常表 ]
-                probe_pa += step                         |
-                     |                             [ 探测完成，进入分配器初始化 ]
-                     +-----------------------------------+
-```
+![裸机主动探测流程](./images/T7-probe-flow.png)
+
+<p align="center">图 3　裸机主动探测物理内存的流程</p>
 
 ##### 详细技术实现流程与关键陷阱防御
 
@@ -524,17 +475,9 @@ typedef struct {
 
 空闲物理内存块在逻辑上表现为由多个物理地址连续的 `Page` 构成的集合，链表仅跟踪每个集合的首节点：
 
-```
-free_area.free_list (哨兵节点)
-  |
-  +---> [ Page A (Head) ] <==> [ Page B (Head) ] <==> [ Page C (Head) ] <---+
-  |     - property = 4         - property = 2         - property = 8         |
-  |     - PG_property = 1      - PG_property = 1      - PG_property = 1      |
-  |     - 物理地址 PA_A        - 物理地址 PA_B        - 物理地址 PA_C        |
-  |     (物理页帧 A ~ A+3)     (物理页帧 B ~ B+1)     (物理页帧 C ~ C+7)     |
-  +-------------------------------------------------------------------------+
-  注：PA_A < PA_B < PA_C（按物理地址严格升序）
-```
+![First-Fit 空闲链表](./images/T7-freelist.png)
+
+<p align="center">图 4　First-Fit 空闲链表的组织（只挂空闲块的首页，按物理地址升序）</p>
 
 ---
 
@@ -1328,11 +1271,11 @@ SLUB **没有**注册成一个新的 `pmm_manager`，而是作为独立模块接
 
 ![SLUB 结构示意图](./images/T4-slub-layout.png)
 
-<p align="center">图 1　slab 页的布局与 kmem_cache 的组织</p>
+<p align="center">图 5　slab 页的布局与 kmem_cache 的组织</p>
 
-**slab 页的布局**（图 1(a)）：页首是 48 字节的 `struct slab` 头，记录魔数、已分配对象数、所属缓存和 freelist；后面是等长的对象。空闲对象的前 8 字节存放下一个空闲对象的地址，freelist 就“嵌”在空闲对象里，不需要额外的空间。释放时，把对象地址向下对齐到 4 KB 就能找到 slab 头，从而知道它属于哪个缓存。
+**slab 页的布局**（图 5(a)）：页首是 48 字节的 `struct slab` 头，记录魔数、已分配对象数、所属缓存和 freelist；后面是等长的对象。空闲对象的前 8 字节存放下一个空闲对象的地址，freelist 就“嵌”在空闲对象里，不需要额外的空间。释放时，把对象地址向下对齐到 4 KB 就能找到 slab 头，从而知道它属于哪个缓存。
 
-**缓存的组织**（图 1(b)）：每种对象大小对应一个 `struct kmem_cache`，它持有三类 slab：
+**缓存的组织**（图 5(b)）：每种对象大小对应一个 `struct kmem_cache`，它持有三类 slab：
 
 - **活动 slab**（`cpu_slab`）：分配时优先从它的 freelist 头部弹出对象，这是最快的路径。Linux 中每个 CPU 有一个活动 slab，这里是单核，所以只有一个。
 - **部分空闲 slab**：挂在 `partial` 双向链表上。活动 slab 用完时，从这里取一个作为新的活动 slab；链表也为空时，才向页分配器申请新页。
@@ -1764,7 +1707,7 @@ QEMU 并不是逐条解释 RISC-V 指令。它把一小段指令（一个翻译�
 
 ![get_physical_address 断点处的调用栈](./images/T5-walk-bt.png)
 
-<p align="center">图 2　开启分页后第一次取指 0xffffffffc02000d6 时的调用栈</p>
+<p align="center">图 6　开启分页后第一次取指 0xffffffffc02000d6 时的调用栈</p>
 
 此时终端 3 中 ucore 的 gdb 停在 `Continuing.`，因为整个 QEMU 进程都被终端 2 暂停了。gdb 用十进制显示地址，`18446744072637907158` 就是 `0xffffffffc02000d6`。`access_type=2` 表示取指，`mmu_idx=1` 表示 S 态。从下往上读这条调用栈：
 
@@ -1816,7 +1759,7 @@ target_ulong ppn = pte >> PTE_PPN_SHIFT;                                   // �
 
 读出页表项后，一串 `if / else if` 决定下一步：V 为 0 就失败；R、W、X 全为 0 表示非叶子，令 `base = ppn << PGSHIFT` 进入下一级；否则是叶子，依次检查保留组合、U 位与当前特权级、大页对齐、读写执行权限，全部通过后设置 A/D 位并计算物理地址。
 
-在第 254 行（`ppn = pte >> PTE_PPN_SHIFT`，此时页表项刚读出）设断点查看各变量，再在计算物理地址的第 334 行停下，单步执行这一行，结果如图 3 所示：
+在第 254 行（`ppn = pte >> PTE_PPN_SHIFT`，此时页表项刚读出）设断点查看各变量，再在计算物理地址的第 334 行停下，单步执行这一行，结果如图 7 所示：
 
 ```gdb
 (gdb) break cpu_helper.c:254
@@ -1837,7 +1780,7 @@ target_ulong ppn = pte >> PTE_PPN_SHIFT;                                   // �
 
 ![页表遍历中的变量值](./images/T5-walk-pte.png)
 
-<p align="center">图 3　第 254 行与第 334 行处的变量值</p>
+<p align="center">图 7　第 254 行与第 334 行处的变量值</p>
 
 第 254 行处的变量：
 
@@ -1857,7 +1800,7 @@ lab2 只建立了这一个大页映射，所以看不到三级页表都走一遍
 
 ### 演示：一个虚拟地址被翻译成物理地址的结果
 
-页表遍历结束后，删除前面的断点，用 `finish` 执行完翻译函数，再在写 TLB 的函数处停下（图 4）。结合图 2 末尾打印的 `satp`：
+页表遍历结束后，删除前面的断点，用 `finish` 执行完翻译函数，再在写 TLB 的函数处停下（图 8）。结合图 6 末尾打印的 `satp`：
 
 ```gdb
 (gdb) delete
@@ -1872,7 +1815,7 @@ lab2 只建立了这一个大页映射，所以看不到三级页表都走一遍
 
 ![翻译结果写入 TLB](./images/T5-walk-tlbset.png)
 
-<p align="center">图 4　get_physical_address 的返回值与 tlb_set_page_with_attrs 的参数</p>
+<p align="center">图 8　get_physical_address 的返回值与 tlb_set_page_with_attrs 的参数</p>
 
 - `satp` 的最高 4 位为 8，表示 Sv39；低 44 位 `0x80208` 是根页表的物理页号，即 `boot_page_table_sv39` 所在的物理地址 `0x80208000`。
 - 返回值 0 是 `TRANSLATE_SUCCESS`。
@@ -1918,7 +1861,7 @@ lab2 只建立了这一个大页映射，所以看不到三级页表都走一遍
 
 ![make qemu 运行截图](./images/T8-make-qemu.png)
 
-<p align="center">图 5　make qemu 的运行结果</p>
+<p align="center">图 9　make qemu 的运行结果</p>
 
 输出依次对应启动过程的各个阶段：
 
@@ -1935,7 +1878,7 @@ lab2 只建立了这一个大页映射，所以看不到三级页表都走一遍
 
 ![make grade 运行截图](./images/T8-make-grade.png)
 
-<p align="center">图 6　make grade 的运行结果</p>
+<p align="center">图 10　make grade 的运行结果</p>
 
 `make grade` 把代码复制到 `/tmp/lab2_grade`，由 `tools/inject.py` 在 `pmm_init()` 末尾插入 `test_page_init()` 和 `test_best_fit()` 两个测试函数，再运行内核、检查输出。两项都通过，总分 **20/20**。两项分别检查：
 
@@ -1952,8 +1895,8 @@ lab2 只建立了这一个大页映射，所以看不到三级页表都走一遍
 | :--- | :--- | :--- |
 | page_init | 用 `-m 64M`、默认 128M、`-m 256M` 启动，打印 `npage` 和空闲页数 | 空闲页 15705、31929、31929，与手算一致；256M 时上界被截断到 0x88000000 |
 | Best-Fit | `code/tests/run_best_fit.sh`：在临时副本中接入 `best_fit_regression.c`，检查最小块选择、同大小选低地址、分裂、碎片导致分配失败、前后合并 | 三组检查全部 PASS，测试后空闲页恢复为 31929 |
-| Buddy System | 由提示词二生成的测试函数 | 待补（T3 完成后填写） |
-| SLUB | 由提示词二生成的测试函数 | 待补（T4 测试部分完成后填写） |
+| Buddy System | `make PMM=buddy qemu`：`pmm_init()` 中的 `check_alloc_page()` 先运行实现方自检 `buddy_check()`，之后 `kern_init()` 运行独立测试 `buddy_test()`（由提示词二生成），覆盖伙伴块分裂与合并、对齐向上取整与数据隔离、相邻非伙伴隔离与碎片分配失败、非对齐奇数长度及分段 `init_memmap`；变异测试检验断言有效性 | 四组检查全部 PASS，最后输出 `[BUDDY] all tests passed (31919 free pages restored)`；64 MiB 启动同样全部通过（15695 free pages restored）；变异测试注入的 8 种典型错误（M1～M8）全部被断言发现 |
+| SLUB | `make qemu`：`kern_init()` 在 `pmm_init()` 之后由 `slub_init()` 建立 7 个通用缓存后调用 `slub_check()`（由提示词二生成），覆盖各大小缓存单 slab 满页与扩容、partial 状态转换与回收、批量分配与释放复用、大对象页级回退与单页边界检查 | 启动自测全部 PASS，末尾输出 `[SLUB] all checks passed (retained 7 active slab pages)`，七个缓存各保留一个活动空 slab，`make grade` 维持 20/20 |
 
 
 # 六、实验总结与收获
