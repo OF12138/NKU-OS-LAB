@@ -34,6 +34,8 @@
 * 只需要单栏输出（如 `make qemu`、`make grade`）时，用 `.claude/tools/tmux-run.sh <WSL 中的 code 目录> "<命令>"` 建会话，它会自动设置 PATH 和 QEMU。
 * 截图窗口会弹出几秒，期间用户在键盘上打字会被输入进去，所以截图前要提醒用户。截完后检查画面里有没有多余字符。
 
+* 双 GDB 调试 QEMU（lab2 的 gdb 页表查询分支任务，教程见 `temp/gdb-guide.md`）：双击 `.claude/tools/dual-gdb.cmd` 一键开 Windows Terminal（QEMU 标签 + 左右分栏的 gdb 标签：左 attach QEMU、右 ucore gdb，右栏会等左栏 continue 后自动连接），双击 `dual-gdb-stop.cmd` 一键退出。逻辑在 `dual-gdb.sh`，默认编译工作区的 `code/`（可用环境变量 `DUAL_GDB_CODE` 指向 sync-wsl.sh 导出的目录）。窗格只有退出码为 0 才会自动关闭，所以 stop 先发 SIGTERM、脚本收到后 `exit 0`，不要改成直接 KILL。无头测试可以用 tmux 起三个窗格代替 wt。
+
 ## 画图
 
 * 风格：传统工科风格，黑白、不用彩色，矩形用尖角（直角），不用圆角。中文用宋体（SimSun），西文用 Times New Roman，地址用 Consolas。
