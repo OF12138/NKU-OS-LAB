@@ -42,3 +42,4 @@
 - 报告把分配与释放统一写成 O(log N) → 释放函数还会逐页清理实际占用的 S 页 → 修正为分配 O(log N)、释放 O(S + log N)，并同步到提示词的报告要求。
 
 ## 留言
+- [openfar 10-22] 轻度审核 T3：实现逻辑正确，统一环境下复跑 `make grade` 20/20、`make PMM=buddy qemu` 输出 `buddy: check passed`。改动：temp/T3-*.log 原为 UTF-16 加乱码的 WSL 警告行，已转成纯文本（内容未改）。独立测试和提示词二按计划由 openfar 于 10-23 完成。
