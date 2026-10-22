@@ -4,17 +4,9 @@ Lab2 的主题是**物理内存管理**。lab1 结束时，内核只知道自己
 
 我们认为本章可以概括成一句话：**一层一层地把内存“组织”起来，每一层都只依赖下一层提供的接口。**从下到上依次是：
 
-```
-  任意大小的对象     kmalloc / kfree                         SLUB（Challenge）
-        ▲               按大小分到 7 个缓存，一个 slab 占一页
-  连续的物理页       alloc_pages / free_pages                pmm_manager：First-Fit / Best-Fit / Buddy
-        ▲               空闲块怎样组织、怎样挑选
-  每一页的描述       struct Page pages[]                      page_init
-        ▲               哪些页保留、哪些页空闲
-  物理内存的范围     get_memory_base / get_memory_size        dtb_init（框架）
-        ▲               设备树告诉内核内存从哪里开始、有多大
-  地址怎样被访问     启动页表 boot_page_table_sv39            entry.S（框架）；分支任务观察 QEMU 如何查表
-```
+![lab2 的分层结构](../images/T6-layers.png)
+
+<p align="center">图 T6-1　lab2 物理内存管理的分层结构</p>
 
 指导书给出的实现链 `pmm_init() → init_pmm_manager() → page_init() → init_memmap() → alloc_pages()/free_pages()` 正好对应中间三层。SLUB 搭在页分配器之上，分支任务则回到最底层，看“硬件”（QEMU）怎样使用 `entry.S` 建立的页表。
 

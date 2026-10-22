@@ -37,17 +37,9 @@ typedef struct {
 
 空闲物理内存块在逻辑上表现为由多个物理地址连续的 `Page` 构成的集合，链表仅跟踪每个集合的首节点：
 
-```
-free_area.free_list (哨兵节点)
-  |
-  +---> [ Page A (Head) ] <==> [ Page B (Head) ] <==> [ Page C (Head) ] <---+
-  |     - property = 4         - property = 2         - property = 8         |
-  |     - PG_property = 1      - PG_property = 1      - PG_property = 1      |
-  |     - 物理地址 PA_A        - 物理地址 PA_B        - 物理地址 PA_C        |
-  |     (物理页帧 A ~ A+3)     (物理页帧 B ~ B+1)     (物理页帧 C ~ C+7)     |
-  +-------------------------------------------------------------------------+
-  注：PA_A < PA_B < PA_C（按物理地址严格升序）
-```
+![First-Fit 空闲链表](../images/T7-freelist.png)
+
+<p align="center">图 T7-1　First-Fit 空闲链表的组织（只挂空闲块的首页，按物理地址升序）</p>
 
 ---
 
@@ -289,23 +281,9 @@ static void default_free_pages(struct Page *base, size_t n) {
 
 在现代 RISC-V 和 ARM 嵌入式架构中，基于设备树（Device Tree）的动态配置已成为事实上的工业标准。
 
-```
-[ Bootloader / OpenSBI (M-Mode) ]
-              |
-              | 1. 初始化平台硬件，探测 RAM
-              | 2. 将硬件拓扑编码为 DTB 二进制
-              | 3. 将 DTB 物理地址写入 a1 寄存器
-              v
-[ ucore 内核入口 (S-Mode) ]
-              |
-              | 读取 a1 寄存器，获取 DTB 基地址
-              v
-[ DTB 解析模块 (dtb.c) ]
-              |
-              | 遍历 "/memory" 节点，读取 "reg" 属性
-              v
-得到可用物理内存区间：[mem_begin, mem_begin + mem_size]
-```
+![设备树传递内存范围](../images/T7-dtb-flow.png)
+
+<p align="center">图 T7-2　通过设备树获取物理内存范围</p>
 
 **实现机制与调用链：**
 1. **约定传参**：根据 RISC-V SBI 规范，在固件完成硬件初始化并跳转至内核入口时，将通用寄存器 `a0` 存入当前 CPU 的 Hart ID，将寄存器 `a1` 存入设备树二进制文件（Device Tree Blob, DTB）在物理内存中的基地址指针。
@@ -342,36 +320,9 @@ static void default_free_pages(struct Page *base, size_t n) {
 
 在完全缺乏固件传参、无设备树、也无法直接读取内存控制器的极端裸机环境下，内核必须采用“主动内存探测算法”。该方案必须兼顾**破坏性规避**、**地址回卷防护**以及**总线硬件异常截断**：
 
-```
-                   [ 开始裸机探测循环 ]
-                             |
-                   probe_pa = DRAM_BASE (0x80000000)
-                   step = 1 MiB (或 4 KiB)
-                             |
-             +-------------->+
-             |               |
-             |     [ 安装临时 Trap 向量表 ] (捕获 Load/Store Fault)
-             |               |
-             |     1. 保存原内存值: old_val = *probe_pa
-             |     2. 写入测试魔数: *probe_pa = 0xAA55AA55
-             |     3. 强制内存屏障: fence / mb()
-             |     4. 回读并校验:   read_val = *probe_pa
-             |               |
-        发生硬件异常? -------+----是----> [ 触发 Trap: 达到物理内存边界 ]
-             | 否                                        |
-      read_val == 魔数?                                  |
-        /          \                                     |
-      否            是                                   |
-      /              \                                   v
-[ 探测终止 ]    5. 写入反转测试魔数: 0x55AA55AA        记录有效内存上界
-(检测到非RAM)   6. 回读校验防地址回卷 (Aliasing)       max_pa = probe_pa
-                     |                                   |
-                7. 恢复原数据: *probe_pa = old_val       v
-                     |                             [ 恢复正常系统异常表 ]
-                probe_pa += step                         |
-                     |                             [ 探测完成，进入分配器初始化 ]
-                     +-----------------------------------+
-```
+![裸机主动探测流程](../images/T7-probe-flow.png)
+
+<p align="center">图 T7-3　裸机主动探测物理内存的流程</p>
 
 ##### 详细技术实现流程与关键陷阱防御
 

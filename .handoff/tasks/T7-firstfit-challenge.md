@@ -33,3 +33,4 @@
 ## 留言
 - [nagilix 10-18] T7 分析与思考题章节及反推 Prompt 均已全部完成，未改动任何 code/ 文件。请 openfar 查阅并集成。
 - [openfar 10-21] 审核：分析部分写得扎实。直接改了三处：① 18 处 `file:///home/nagilix/...` 链接在别人电脑和 GitHub 上都打不开，改成了纯代码文本；② 复杂度对比表里 Buddy“无外部碎片”不对（只有伙伴块能合并，仍有外部碎片），已改；③ 在 3.1 补了第 4 点：First-Fit 尾插分支缺少 break 导致链表损坏、漏合并（lyp 发现，我实测确认，附了实测输出）。
+- [openfar 10-22] 按组内画图规范，把三张文本示意图（空闲链表、设备树传递流程、裸机探测流程）改成了图片 T7-freelist/dtb-flow/probe-flow.png（图 T7-1～3，脚本 .claude/tools/lab2-diagrams.py）。探测流程图按正文 2.4 节做了两处整理：临时 trap 入口在进入循环前安装一次；“回读不等于魔数”“回卷校验失败”和 trap 截断都汇到“记录上界 max_pa”。设备树区间写成半开区间 [mem_begin, mem_begin + mem_size)。

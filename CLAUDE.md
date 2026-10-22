@@ -41,7 +41,8 @@
 ## 画图
 
 * 风格：传统工科风格，黑白、不用彩色，矩形用尖角（直角），不用圆角。中文用宋体（SimSun），西文用 Times New Roman，地址用 Consolas。
-* 示例脚本：`.claude/tools/diagram-example.py`（lab1 启动流程图）。SimSun 中没有 `⋮` 这类特殊符号，需要改用图形元素绘制。
+* **报告里的结构图、流程图、层次图一律画成图片，不要用代码块里的字符画示意**（用户 lab2 明确要求；审核成员 section 时发现字符画也要改画）。
+* 示例脚本：`.claude/tools/diagram-example.py`（lab1 启动流程图）。lab2 的四张图（分层结构、空闲链表、两张流程图，含菱形判断框和折线连接）见 `.claude/tools/lab2-diagrams.py`，可以照搬其中的 `Fig` 辅助类。SimSun 中没有 `⋮` 这类特殊符号，需要改用图形元素绘制。
 
 ## 用户偏好
 
