@@ -1,0 +1,146 @@
+sudo -n gdb -q -nx -p 14737
+lenovo@LYP-WIN:/mnt/f/Lab_2026/NKU-OS-LAB$ sudo -n gdb -q -nx -p 14737
+Attaching to process 14737
+[New LWP 14755]
+[New LWP 14756]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "[32m/lib/x86_64-linux-gnu/libthread_db.so.1[39m".
+[34m0x0000764819918e1e[39m in [33m__ppoll[39m ([36mfds[39m=0x58f4afc930e0, [36mnfds[39m=6, [36mtimeout[39m=<optimized out>, [36msigmask[39m=0x0) at [32m../sysdeps/u
+nix/sysv/linux/ppoll.c[39m:42
+42      ../sysdeps/unix/sysv/linux/ppoll.c: No such file or directory.
+(gdb) set pagination off
+(gdb) set confirm off
+(gdb) set print frame-arguments none
+(gdb) set print pretty off
+(gdb) set style enabled on
+(gdb) handle SIGPIPE nostop noprint
+Signal        Stop      Print   Pass to program Description
+SIGPIPE       No        No      Yes             Broken pipe
+(gdb) break get_physical_address if addr == 0x80209000 && access_type == 1
+Breakpoint 1 at [34m0x58f47841e775[39m: file [32m/home/lenovo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m, line 158.
+(gdb) continue
+Continuing.
+[Switching to Thread 0x764818f7d640 (LWP 14756)]
+
+Thread 3 "qemu-system-ris" hit Breakpoint 1, [33mget_physical_address[39m ([36menv[39m=..., [36mphysical[39m=..., [36mprot[39m=..., [36maddr[39m=..., [36mac
+cess_type[39m=..., [36mmmu_idx[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:158
+158     [31m{[39m
+(gdb) p/x env->satp
+$1 = 0x0
+(gdb) set $bare_satp = env->satp
+(gdb) set $bare_va = addr
+(gdb) p mmu_idx
+$2 = 1
+(gdb) bt 5
+#0  [33mget_physical_address[39m ([36menv[39m=..., [36mphysical[39m=..., [36mprot[39m=..., [36maddr[39m=..., [36maccess_type[39m=..., [36mmmu_idx[39m=...) at [32m/home/leno
+vo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:158
+#1  [34m0x000058f47841f451[39m in [33mriscv_cpu_tlb_fill[39m ([36mcs[39m=..., [36maddress[39m=..., [36msize[39m=..., [36maccess_type[39m=..., [36mmmu_idx[39m=..., [36mprobe
+[39m=..., [36mretaddr[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:451
+#2  [34m0x000058f4783656cf[39m in [33mtlb_fill[39m ([36mcpu[39m=..., [36maddr[39m=..., [36msize[39m=..., [36maccess_type[39m=..., [36mmmu_idx[39m=..., [36mretaddr[39m=...) at [32m/
+home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:878
+#3  [34m0x000058f47836bbde[39m in [33mstore_helper[39m ([36mbig_endian[39m=..., [36msize[39m=..., [36mretaddr[39m=..., [36moi[39m=..., [36mval[39m=..., [36maddr[39m=..., [36menv[39m=..
+.) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:1522
+#4  [33mhelper_le_stq_mmu[39m ([36menv[39m=..., [36maddr[39m=..., [36mval[39m=..., [36moi[39m=..., [36mretaddr[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/a
+ccel/tcg/cputlb.c[39m:1672
+(More stack frames follow...)
+(gdb) set $phys = physical
+(gdb) until target/riscv/cpu_helper.c:197
+[33mget_physical_address[39m ([36menv[39m=..., [36mphysical[39m=..., [36mprot[39m=..., [36maddr[39m=..., [36maccess_type[39m=..., [36mmmu_idx[39m=...) at [32m/home/lenovo/E
+nvironment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:197
+197                 [31m*[39mphysical [31m=[39m addr[31m;[39m
+(gdb) p vm
+$3 = 0
+(gdb) next
+198                 [31m*[39mprot [31m=[39m PAGE_READ [31m|[39m PAGE_WRITE [31m|[39m PAGE_EXEC[31m;[39m
+(gdb) p/x *physical
+$4 = 0x80209000
+(gdb) set $bare_pa = *physical
+(gdb) finish
+Run till exit from #0  [33mget_physical_address[39m ([36menv[39m=..., [36mphysical[39m=..., [36mprot[39m=..., [36maddr[39m=..., [36maccess_type[39m=..., [36mmmu_idx
+[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:198
+[34m0x000058f47841f451[39m in [33mriscv_cpu_tlb_fill[39m ([36mcs[39m=..., [36maddress[39m=..., [36msize[39m=..., [36maccess_type[39m=..., [36mmmu_idx[39m=..., [36mprobe[39m=...
+, [36mretaddr[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:451
+451         ret [31m=[39m [1mget_physical_address[0m[31m[49m([39menv[31m,[39m [31m&[39mpa[31m,[39m [31m&[39mprot[31m,[39m address[31m,[39m access_type[31m,[39m mmu_idx[31m);[39m
+Value returned is $5 = 0
+(gdb) break tlb_set_page_with_attrs if vaddr == 0x80209000
+Breakpoint 2 at [34m0x58f478365073[39m: file [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m, line 700.
+(gdb) continue
+Continuing.
+
+Thread 3 "qemu-system-ris" hit Breakpoint 2, [33mtlb_set_page_with_attrs[39m ([36mcpu[39m=..., [36mvaddr[39m=..., [36mpaddr[39m=..., [36mattrs[39m=...,
+[36mprot[39m=..., [36mmmu_idx[39m=..., [36msize[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:700
+700     [31m{[39m
+(gdb) p/x vaddr
+$6 = 0x80209000
+(gdb) p/x paddr
+$7 = 0x80209000
+(gdb) p size
+$8 = 4096
+(gdb) break get_physical_address if addr == 0xffffffffc0207ff8 && access_type == 1
+Note: breakpoint 1 also set at pc [34m0x58f47841e775[39m.
+Breakpoint 3 at [34m0x58f47841e775[39m: file [32m/home/lenovo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m, line 158.
+(gdb) continue
+Continuing.
+
+Thread 3 "qemu-system-ris" hit Breakpoint 3, [33mget_physical_address[39m ([36menv[39m=..., [36mphysical[39m=..., [36mprot[39m=..., [36maddr[39m=..., [36mac
+cess_type[39m=..., [36mmmu_idx[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:158
+158     [31m{[39m
+(gdb) p/x env->satp
+$9 = 0x8000000000080208
+(gdb) set $sv39_satp = env->satp
+(gdb) set $sv39_va = addr
+(gdb) p mmu_idx
+$10 = 1
+(gdb) bt 5
+#0  [33mget_physical_address[39m ([36menv[39m=..., [36mphysical[39m=..., [36mprot[39m=..., [36maddr[39m=..., [36maccess_type[39m=..., [36mmmu_idx[39m=...) at [32m/home/leno
+vo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:158
+#1  [34m0x000058f47841f451[39m in [33mriscv_cpu_tlb_fill[39m ([36mcs[39m=..., [36maddress[39m=..., [36msize[39m=..., [36maccess_type[39m=..., [36mmmu_idx[39m=..., [36mprobe
+[39m=..., [36mretaddr[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:451
+#2  [34m0x000058f4783656cf[39m in [33mtlb_fill[39m ([36mcpu[39m=..., [36maddr[39m=..., [36msize[39m=..., [36maccess_type[39m=..., [36mmmu_idx[39m=..., [36mretaddr[39m=...) at [32m/
+home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:878
+#3  [34m0x000058f47836bbde[39m in [33mstore_helper[39m ([36mbig_endian[39m=..., [36msize[39m=..., [36mretaddr[39m=..., [36moi[39m=..., [36mval[39m=..., [36maddr[39m=..., [36menv[39m=..
+.) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:1522
+#4  [33mhelper_le_stq_mmu[39m ([36menv[39m=..., [36maddr[39m=..., [36mval[39m=..., [36moi[39m=..., [36mretaddr[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/a
+ccel/tcg/cputlb.c[39m:1672
+(More stack frames follow...)
+(gdb) set $phys = physical
+(gdb) finish
+Run till exit from #0  [33mget_physical_address[39m ([36menv[39m=..., [36mphysical[39m=..., [36mprot[39m=..., [36maddr[39m=..., [36maccess_type[39m=..., [36mmmu_idx
+[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:158
+[34m0x000058f47841f451[39m in [33mriscv_cpu_tlb_fill[39m ([36mcs[39m=..., [36maddress[39m=..., [36msize[39m=..., [36maccess_type[39m=..., [36mmmu_idx[39m=..., [36mprobe[39m=...
+, [36mretaddr[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/target/riscv/cpu_helper.c[39m:451
+451         ret [31m=[39m [1mget_physical_address[0m[31m[49m([39menv[31m,[39m [31m&[39mpa[31m,[39m [31m&[39mprot[31m,[39m address[31m,[39m access_type[31m,[39m mmu_idx[31m);[39m
+Value returned is $11 = 0
+(gdb) p/x *$phys
+$12 = 0x80207000
+(gdb) set $sv39_pa = *$phys
+(gdb) break tlb_set_page_with_attrs if vaddr == 0xffffffffc0207000
+Note: breakpoint 2 also set at pc [34m0x58f478365073[39m.
+Breakpoint 4 at [34m0x58f478365073[39m: file [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m, line 700.
+(gdb) continue
+Continuing.
+
+Thread 3 "qemu-system-ris" hit Breakpoint 4, [33mtlb_set_page_with_attrs[39m ([36mcpu[39m=..., [36mvaddr[39m=..., [36mpaddr[39m=..., [36mattrs[39m=...,
+[36mprot[39m=..., [36mmmu_idx[39m=..., [36msize[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:700
+700     [31m{[39m
+(gdb) p/x vaddr
+$13 = 0xffffffffc0207000
+(gdb) p/x paddr
+$14 = 0x80207000
+(gdb) p size
+$15 = 4096
+(gdb) p/x $bare_satp
+$16 = 0x0
+(gdb) p/x $bare_va
+$17 = 0x80209000
+(gdb) p/x $bare_pa
+$18 = 0x80209000
+(gdb) p/x $sv39_satp
+$19 = 0x8000000000080208
+(gdb) p/x $sv39_va
+$20 = 0xffffffffc0207ff8
+(gdb) p/x $sv39_pa | ($sv39_va & 0xfff)
+$21 = 0x80207ff8
+(gdb) p size
+$22 = 4096
+(gdb)

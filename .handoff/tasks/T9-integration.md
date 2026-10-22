@@ -16,3 +16,4 @@
 ## 迭代素材
 
 ## 留言
+- [lyp 2026-10-22] T5 的 TLB 部分已完成：`report/sections/T5-tlb.md`、`T5-tlb.prompt.md` 和 5 张真实 tmux/GDB 输出图，四组实验实测，默认评分 20/20。可用既有 `merge-report.py --fill` 合并；复现见 `temp/T5-reproduce.md`。本机 GCC 10.2 的 kern_init/sd 地址比 T5-walk 多 2 字节，正文已说明。另请审核 T5-walk 中“未 fence 可沿用旧翻译”的适用范围：当前规范要求 Bare 与其他模式切换立即生效，不能把 QEMU 4.1.1 的该现象直接视为硬件规范允许的行为。
