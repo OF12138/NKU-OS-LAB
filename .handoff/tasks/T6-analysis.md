@@ -10,7 +10,8 @@
 - 列出 OS 原理中很重要、但本实验中没有对应上的知识点。（lyp）
 
 ## 当前进度 / 下一步
-- 等 T1–T3 基本完成后动笔。
+- [x] openfar（10-22）：整体逻辑 `report/sections/T6-overall.md`（逻辑主线、逐步实现、核心函数汇总）及提示词 `T6-overall.prompt.md` 已完成。
+- [ ] lyp：知识点与 OS 原理对应，写在 `report/sections/T6-knowledge.md`。T8 早期版本中有一份知识点初稿（git 历史 2f9e274 的 T8-summary.md 6.1 节），可作为素材。
 
 ## 关键决策与结论
 

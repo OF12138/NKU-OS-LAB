@@ -12,7 +12,7 @@
 | T3 | 功能模块二 任务三：Buddy System（实现 lyp / 测试 openfar） | lyp, openfar | 实现 10-22，测试 10-23 | 完成 | code/kern/mm/buddy_pmm.*, report/sections/T3-* |
 | T4 | Challenge：SLUB（实现 openfar / 测试 lyp） | openfar, lyp | 实现 10-22，测试 10-23 | 完成 | code/kern/mm/slub.*, report/sections/T4-* |
 | T5 | 分支任务：GDB 调试 QEMU 页表查询（openfar：调用路径与页表遍历 / lyp：TLB） | openfar, lyp | 10-24 | 进行中 | report/sections/T5-*, report/images/T5-* |
-| T6 | 整体逻辑分析（openfar）；知识点与 OS 原理对应（lyp） | openfar, lyp | 10-24 | 待开始 | report/sections/T6-* |
+| T6 | 整体逻辑分析（openfar）；知识点与 OS 原理对应（lyp） | openfar, lyp | 10-24 | 进行中 | report/sections/T6-* |
 | T7 | 功能模块二 任务一：First-Fit 分析；功能模块一 Challenge：内存范围获取 | nagilix | 10-21 | 完成 | report/sections/T7-* |
 | T8 | 实验目的、实验环境、测试与验证、实验总结初稿 | nagilix | 10-24 | 进行中 | report/sections/T8-*, report/images/T8-* |
 | T9 | 集成：report.md、prompt.md、最终 make grade | openfar | 10-25 | 待开始 | report/report.md, report/prompt.md |
