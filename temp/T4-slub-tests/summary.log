@@ -1,0 +1,10 @@
+best_fit-128M-case0: PASS
+best_fit-64M-case0: PASS
+buddy-128M-case0: PASS
+buddy-64M-case0: PASS
+best_fit-128M-case1: PASS (expected panic)
+best_fit-128M-case2: PASS (expected panic)
+best_fit-128M-case3: PASS (expected panic)
+best_fit-128M-case4: PASS (expected panic)
+best_fit-128M-case5: PASS (expected panic)
+best_fit-128M-case6: PASS (expected panic)

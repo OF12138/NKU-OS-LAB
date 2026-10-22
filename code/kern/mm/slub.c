@@ -76,7 +76,9 @@ static int cache_setup(struct kmem_cache *cache, const char *name, size_t size, 
     //   2 的幂只有一位是 1，如 8 = 1000b，减 1 得 0111b，按位与为 0；
     //   非 2 的幂，如 12 = 1100b，减 1 得 1011b，按位与 = 1000b，不为 0
     // 对齐值必须是 2 的幂，否则不合法，返回 -E_INVAL
-    if (size == 0 || (align & (align - 1)) != 0) return -E_INVAL;
+    // lab2 2414099：先限定单页缓存的输入范围，避免 ROUNDUP 或 offset + stride 溢出。
+    if (size == 0 || size > PGSIZE || align >= PGSIZE ||
+        (align & (align - 1)) != 0) return -E_INVAL;
     // stride（步长）= 每个对象实际占的字节数：用户请求的 size 向上取整到 align 的整数倍
     // offset = 第一个对象的页内偏移：跳过页首的 struct slab 头，同样向上取整到 align，保证第一个对象对齐
     size_t stride = ROUNDUP(size, align);  // 至少 8 字节，空闲时能放下 next 指针

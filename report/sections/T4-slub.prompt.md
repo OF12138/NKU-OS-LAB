@@ -135,7 +135,7 @@ void slub_print_stats(void);
 - create：`align` 小于 8 时按 8 处理，且必须是 2 的幂；对象步长为 `size` 向上对齐到 `align`；slab 头之后的第一个对象也要满足对齐。成功时返回新缓存并挂入全局缓存链表。
 - destroy：缓存中没有在用对象时，释放它持有的所有 slab 页，并把 `struct kmem_cache` 还给 cache_cache，返回 0。
 
-  **Case 1**：`size == 0`、`align` 不是 2 的幂，或一页放不下一个对象 → create 返回 NULL。
+  **Case 1**：`size == 0`、`align` 不是 2 的幂，或一页放不下一个对象 → create 返回 NULL。对齐计算之前先限定 `size <= PGSIZE`、归一化后的 `align < PGSIZE`，避免极大输入导致 `ROUNDUP` 或 `offset + stride` 溢出（lyp 独立测试后补充）。
   **Case 2**：destroy 时还有对象未释放，或者要销毁的是 cache_cache 或 kmalloc 通用缓存 → 返回 `-E_INVAL`，不做任何改动。
 
 ## kmem_cache_alloc

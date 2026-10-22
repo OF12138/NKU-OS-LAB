@@ -55,6 +55,7 @@ struct kmem_cache //kernal memory pool .
 };
 
 void slub_init(void);
+void slub_check(void);  // lab2 2414099：初始化后的独立测试
 
 struct kmem_cache *kmem_cache_create(const char *name, size_t size, size_t align);
 int kmem_cache_destroy(struct kmem_cache *cache);

@@ -42,6 +42,7 @@ int kern_init(void)
     // grade_backtrace();
     pmm_init();  // init physical memory management
     slub_init(); // 在页分配器之上建立 SLUB 对象分配器（Challenge）
+    slub_check(); // lab2 2414099：验证对象分配、释放和页面回收
 
     /* do nothing */
     while (1)

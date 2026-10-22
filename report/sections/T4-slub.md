@@ -81,7 +81,7 @@ SLUB **没有**注册成一个新的 `pmm_manager`，而是作为独立模块接
 经过 2 次迭代，该模块最终：
 
 - ✅ 编译通过，`make qemu` 正常启动，输出 `slub: 7 kmalloc caches (16 ~ 1024 bytes), larger requests use whole pages`
-- ✅ `make grade` 结果不受影响（check page init: OK；check best fit 等 T2 完成）
+- ✅ 当时 `make grade` 的 page init 检查通过；Best-Fit 尚待 T2 完成。本节末尾的正式回归已在当前 Best-Fit 下取得 20/20。
 - ✅ 冒烟验证通过（见下）。正式测试由提示词二生成。
 
 正式测试完成之前，我在临时副本中做了一次冒烟验证（First-Fit 冒充 Best-Fit，测试代码不进仓库）：
@@ -107,4 +107,73 @@ SLUB **没有**注册成一个新的 `pmm_manager`，而是作为独立模块接
 
 ### 提示词二：测试函数
 
-> **【待补】提示词二与测试结果（T4 测试部分，lyp，10-23）**：根据上面的实现设计测试函数，提示词放在 `T4-slub-test.prompt.md`。请说明测试覆盖了哪些核心行为和边界情况，以及这些测试为什么能有效检验本实现。`struct kmem_cache` 的统计字段 `size`、`objs_per_slab`、`nr_slabs`、`nr_partial`、`nr_inuse` 可以直接读取；`slub_print_stats()` 会打印所有缓存的状态。
+<!-- include:T4-slub-test.prompt.md -->
+
+### 独立测试的设计与覆盖
+
+测试由李云鹏于 2026-10-22 完成。入口为 [`slub_check()`](../../code/kern/mm/slub_test.c)，在 `kern_init()` 的 `slub_init()` 之后运行。测试通过公开接口分配和释放对象，并读取公开的缓存统计；没有修改 Best-Fit 原始测试、评分脚本或页描述符布局。
+
+单纯观察“返回了非空指针”无法判断分配器是否正确。例如，两个对象可能重叠，释放后也可能没有真正归还页面。因此测试同时核对四类证据：返回地址与容量、已写入内容、缓存状态，以及底层空闲页数。写入的字节模式同时包含对象编号和字节位置，填满 `ksize()` 声明的可用空间；再次分配或释放相邻对象后重读，可以发现重叠分配、越界覆盖和错误复用。
+
+| 测试函数 | 核心行为与边界 | 为什么能够检错 |
+| :--- | :--- | :--- |
+| `check_invalid` | 零长度、NULL、12 字节非法对齐、过大对象、`SIZE_MAX`、接近整数上界的加法、最高位对齐值、禁止销毁通用缓存 | 既核对拒绝结果，也核对页数不变；极大输入能暴露对齐计算的整数回绕 |
+| `check_sizes` | 遍历 1～1024 的每个请求大小；22 个大小类边界对象同时存活，交错释放和再分配，再逆序释放 | 核对最小适配缓存、对齐、`ksize` 和内容，区分“能分配”与“分配正确且互不干扰” |
+| `check_partial` | 64 字节缓存填满两页；非活动满页释放两个对象，只进入 partial 一次；活动页满时提升 partial 并后进先出复用 | 地址、页数和 `nr_partial` 联合证明旧页被复用，没有额外申请第三页；继续释放区分非活动整页回收与活动页保留 |
+| `check_custom` | 1/40/65/3000/4048 字节，默认/16/64/8 字节对齐；在用缓存拒绝销毁；单对象 slab 从满直接变空；40 个缓存描述符跨页 | 检查步长、对象完整性、销毁失败后状态不变，以及单对象页释放时 partial 计数不下溢；额外覆盖描述符缓存的生命周期 |
+| `check_large` | 1025、4048、4049、4096、4097、9000、20000 字节同时分配 | 4048/4049 分别位于“头部后剩余一页容量”的两侧；逐次核对页数和全范围内容，释放后验证页面完全恢复 |
+| `check_oom` | 通过真实 `alloc_page()` 耗尽物理页；满缓存扩容、空缓存首次分配和大块分配失败；无空闲页时复用已有对象；归还页后重新分配 | 不伪造 PMM 状态，验证真实资源不足时返回 NULL、旧状态和数据不变，以及资源恢复后仍能正常使用 |
+
+`check_oom` 用已经分配出去的 `Page.page_link` 暂存借出的页，不接触任何分配器私有空闲链。所有临时页按逆序归还，随后销毁自定义缓存。通用缓存会各保留一个空活动页，所以首轮预热后空闲页减少 7 是实现策略；紧接着重复整套测试，第二轮页数必须不再减少。结束时 `cache_cache` 只有 7 个内置缓存描述符在用，其余 7 个缓存的 `nr_inuse` 都为 0。
+
+大块的页数预期还需区分两种底层管理器。例如请求 9000 和 20000 字节时，SLUB 分别申请 3 和 5 页；Best-Fit 实际占用 3/5 页，Buddy 实际占用 4/8 页。`ksize` 按 SLUB 记录的请求页数返回可用容量，释放仍传原请求页数。测试读取当前 `pmm_manager->name` 判断实际占用预期，因此也支持不执行 clean 的管理器切换。
+
+### 非法释放的隔离测试
+
+panic 后内核会停止，不能将所有负向用例放进一次普通启动。[运行器](../../code/tests/run_slub_tests.py) 在临时源码副本中定义 `SLUB_PANIC_TEST=1..6`，为每个用例重新编译并启动独立 QEMU。除了用例开始标记，还必须匹配 `slub.c` 中的 panic 及具体原因；测试断言失败、调用意外返回所产生的 panic 均不能算通过。
+
+| 编号 | 操作 | 预期诊断 | 实测 |
+| :--- | :--- | :--- | :--- |
+| 1 | 32 字节对象连续释放两次 | `slub: double free of ... in cache kmalloc-32` | 通过 |
+| 2 | 把 32 字节缓存对象交给 64 字节缓存释放 | `slub: ... does not belong to cache kmalloc-64` | 通过 |
+| 3 | 释放小对象首址加 1 | `slub: ... is not an object boundary in cache kmalloc-32` | 通过 |
+| 4 | 释放 5000 字节大块首址加 1 | `kfree: invalid pointer ...` | 通过 |
+| 5 | 释放已清零的普通已分配页中的地址 | `kfree: invalid pointer ...` | 通过 |
+| 6 | 大块连续释放两次 | `kfree: invalid pointer ...` | 通过 |
+
+这里检验的是有效映射内的错误地址和立即重复释放，不宣称能识别任意未映射地址或页面重新分配后的陈旧指针；当前实现没有代际标签，也没有并发分配接口，本测试不覆盖多核并发。
+
+### 测试阶段的迭代过程
+
+**第一次迭代：发现并修复极大尺寸溢出。** 首轮编译成功，但内核停在 `assertion failed: kmem_cache_create("overflow", (size_t)-1, 8) == NULL`。原实现先执行 `ROUNDUP(size, align)`，`SIZE_MAX` 会回绕成 0；`offset + stride` 的相加也可能回绕，导致无法容纳的缓存被接受。修复仅在 `cache_setup()` 对齐前增加单页范围检查：`size <= PGSIZE`、归一化后的 `align < PGSIZE`。这样后续运算的两个操作数都有界，原有布局和接口不变。提示词一补充该约束，提示词二保留三个回归输入。[失败日志](../../temp/T4-overflow-before.log)保存了修复前的断言。
+
+**第二次迭代：纠正描述符缓存页数预期。** 批量创建并销毁 40 个缓存后，测试断言 `nr_free_pages() == before` 失败。原因是原描述符页仍保存 7 个通用缓存，而新活动页即使为空也按策略保留，并非实现泄漏。测试先验证合法的“两页、一个 partial、7 个在用描述符”状态；再填满空活动页，令原 partial 页成为活动页，最后释放临时描述符，验证多余页确实归还。[原始日志](../../temp/T4-descriptor-before.log)保留了这次测试设计错误。
+
+**第三次迭代：补齐可重复运行条件。** 自查发现 Makefile 免 clean 切换 PMM 只重编译 `pmm.c`，若测试用编译宏计算 Buddy 页数，就可能沿用旧预期。测试改为读取运行时管理器，随后验证 Best-Fit→Buddy→Best-Fit 双向切换。另一次直接通过 WSL 启动 Python 时出现 `riscv64-unknown-elf-gcc: not found`，改用加载工具链 PATH 的 `bash -lc` 运行即可，未修改内核或工具链。
+
+### 正式验证结果与复现
+
+2026-10-22 使用 WSL Ubuntu 22.04、QEMU 4.1.1/OpenSBI v0.4 完成验证。4 次正常启动各执行两轮完整测试，另外 6 次启动检验预期 panic。完整串口日志及构建日志位于 [`temp/T4-slub-tests/`](../../temp/T4-slub-tests/)，汇总见 [`summary.log`](../../temp/T4-slub-tests/summary.log)。
+
+| 底层分配器 / 内存 | 第一轮空闲页变化 | 第二轮空闲页变化 | 结果 |
+| :--- | :--- | :--- | :--- |
+| Best-Fit / 128 MiB | 31926 → 31919 | 31919 → 31919 | 全部通过 |
+| Best-Fit / 64 MiB | 15702 → 15695 | 15695 → 15695 | 全部通过 |
+| Buddy / 128 MiB | 31925 → 31918 | 31918 → 31918 | 全部通过 |
+| Buddy / 64 MiB | 15701 → 15694 | 15694 → 15694 | 全部通过 |
+
+各次构建的内核代码大小可能改变初始空闲页数，所以测试采用运行时快照，不硬编码表中的绝对数值。所有正常场景均输出 `[SLUB] ALL TESTS PASSED`；免 clean 切换的三次启动也全部通过。
+
+在已配置交叉工具链的 Linux/WSL 登录 shell 中，从仓库根目录执行：
+
+```bash
+export QEMU="$HOME/Environment/qemu-4.1.1/riscv64-softmmu/qemu-system-riscv64"
+python3 code/tests/run_slub_tests.py --qemu "$QEMU" --log-dir temp/T4-slub-tests
+cd code
+make
+make qemu
+# 看到 ALL TESTS PASSED 后，Ctrl+A 再按 X 退出。
+make grade
+```
+
+默认 [`make`](../../temp/T4-make.log) 编译成功，[`make qemu`](../../temp/T4-qemu.log) 正常启动并完成两轮测试；[`make grade`](../../temp/T4-grade.log) 得分 **20/20**，与[修改前基线](../../temp/T4-baseline-grade.log)一致。评分只覆盖原实验要求，SLUB 的独立验证由上述正常与负向测试给出，不能用 20/20 代替 SLUB 测试结论。
