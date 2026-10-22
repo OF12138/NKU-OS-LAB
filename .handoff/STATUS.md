@@ -23,6 +23,6 @@
 ## 全组须知
 - T4 lyp 测试已简化为单次启动自测：各大小缓存、跨页扩展、释放复用和大对象回退通过，默认评分 20/20；报告/提示词二同步重写，日志仅保留 `temp/T4-{make,qemu,grade}.log`。T9 请采用本地新版。
 - T3 Buddy 已推送（10-22）：`make PMM=buddy` 启用，默认仍为 best_fit；独立测试与提示词二由 openfar 于 10-23 完成。
-- 分支任务的双 GDB 教程见 `temp/gdb-guide.md`（命令和输出均已在 e1c74ba 上实测）。
+- 分支任务的双 GDB 教程见 `temp/gdb-guide.md`（命令和输出均已在 2bc1801 的代码上实测；代码改动会改变地址，按教程 3.3 节重新查）。
 - 先按 `temp/env.md` 装好 QEMU 4.1.1 并设置 `QEMU` 环境变量，再跑 `make qemu` / `make grade`。
 - `make grade` 会把测试插到 `pmm_init()` 末尾并检查 `[Test 1] Page Init: PASS`、`[Test 2] Best-Fit: PASS`：不要改 `pmm_init` 的函数名、`pmm.c` 中的 `#include <pmm.h>`，默认管理器必须是 best_fit。
