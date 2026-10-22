@@ -12,7 +12,7 @@
 | T3 | 功能模块二 任务三：Buddy System（实现 lyp / 测试 openfar） | lyp, openfar | 实现 10-22，测试 10-23 | 完成 | code/kern/mm/buddy_pmm.*, report/sections/T3-* |
 | T4 | Challenge：SLUB（实现 openfar / 测试 lyp） | openfar, lyp | 实现 10-22，测试 10-23 | 完成 | code/kern/mm/slub.*, report/sections/T4-* |
 | T5 | 分支任务：GDB 调试 QEMU 页表查询（openfar：调用路径与页表遍历 / lyp：TLB） | openfar, lyp | 10-24 | 完成 | report/sections/T5-*, report/images/T5-* |
-| T6 | 整体逻辑分析（openfar）；知识点与 OS 原理对应（lyp） | openfar, lyp | 10-24 | 进行中 | report/sections/T6-* |
+| T6 | 整体逻辑分析（openfar）；知识点与 OS 原理对应（lyp） | openfar, lyp | 10-24 | 完成 | report/sections/T6-* |
 | T7 | 功能模块二 任务一：First-Fit 分析；功能模块一 Challenge：内存范围获取 | nagilix | 10-21 | 完成 | report/sections/T7-* |
 | T8 | 实验目的、实验环境、测试与验证、实验总结初稿 | nagilix | 10-24 | 完成 | report/sections/T8-*, report/images/T8-* |
 | T9 | 集成：report.md、prompt.md、最终 make grade | openfar | 10-25 | 进行中 | report/report.md, report/prompt.md |
@@ -23,6 +23,6 @@
 ## 全组须知
 - T4 lyp 测试已简化为单次启动自测：各大小缓存、跨页扩展、释放复用和大对象回退通过，默认评分 20/20；报告/提示词二同步重写，日志仅保留 `temp/T4-{make,qemu,grade}.log`。T9 请采用本地新版。
 - T3 Buddy 完成（10-22）：`make PMM=buddy` 启用，默认仍为 best_fit；`make PMM=buddy qemu` 会依次运行 lyp 的自检和 openfar 的独立测试 `buddy_test()`。
-- T5 全部完成：TLB section、提示词和 5 张真实 tmux/GDB 输出图已就绪，复现见 `temp/T5-reproduce.md`。T9 合并时核对两种工具链的入口地址差异及 Bare 模式切换的规范表述。
+- T5/T6 已由 lyp 用 `merge-report.py --fill` 填入报告（10-22），无待补占位、15 张图引用有效；T9 继续审核两种工具链的地址差异及 Bare 模式切换表述，复现见 `temp/T5-reproduce.md`。
 - 先按 `temp/env.md` 装好 QEMU 4.1.1 并设置 `QEMU` 环境变量，再跑 `make qemu` / `make grade`。
 - `make grade` 会把测试插到 `pmm_init()` 末尾并检查 `[Test 1] Page Init: PASS`、`[Test 2] Best-Fit: PASS`：不要改 `pmm_init` 的函数名、`pmm.c` 中的 `#include <pmm.h>`，默认管理器必须是 best_fit。
