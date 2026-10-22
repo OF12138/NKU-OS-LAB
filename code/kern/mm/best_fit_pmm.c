@@ -12,6 +12,7 @@ static free_area_t free_area;
 
 static void best_fit_check(void);
 
+// 初始化管理器：把空闲链表置空（头结点 prev/next 都指向自己），空闲页数清零
 static void
 best_fit_init(void) {
     list_init(&free_list);
@@ -19,8 +20,7 @@ best_fit_init(void) {
 }
 
 // 按地址插入新空闲块，再与紧邻的前后块合并。
-static void
-best_fit_insert_block(struct Page *base, size_t n) {
+static void best_fit_insert_block(struct Page *base, size_t n) {
     list_entry_t *le = list_next(&free_list);
     while (le != &free_list && le2page(le, page_link) < base) {
         le = list_next(le);
@@ -29,7 +29,7 @@ best_fit_insert_block(struct Page *base, size_t n) {
     SetPageProperty(base);
     list_add_before(le, &base->page_link);
     nr_free += n;
-
+    // 左右合并：如果 base 前后有空闲块，且地址连续，就把它们合并成一个更大的块
     le = list_prev(&base->page_link);
     if (le != &free_list) {
         struct Page *prev = le2page(le, page_link);
@@ -53,10 +53,11 @@ best_fit_insert_block(struct Page *base, size_t n) {
     }
 }
 
-static void
-best_fit_init_memmap(struct Page *base, size_t n) {
+// 把一段连续的空闲物理页登记为一个空闲块
+static void best_fit_init_memmap(struct Page *base, size_t n) {
     assert(n > 0);
     for (struct Page *p = base; p != base + n; p++) {
+        // 确认页之前确实是保留状态（page_init 设置的）
         assert(PageReserved(p));
         p->flags = p->property = 0;
         set_page_ref(p, 0);
@@ -64,9 +65,10 @@ best_fit_init_memmap(struct Page *base, size_t n) {
     best_fit_insert_block(base, n);
 }
 
-static struct Page *
-best_fit_alloc_pages(size_t n) {
+// 返回 n 个连续物理页的首页，失败返回 NULL
+static struct Page *best_fit_alloc_pages(size_t n) {
     assert(n > 0);
+    // 快速失败：全部空闲页加起来都不够 n 页
     if (n > nr_free) {
         return NULL;
     }
@@ -99,10 +101,11 @@ best_fit_alloc_pages(size_t n) {
     return best;
 }
 
-static void
-best_fit_free_pages(struct Page *base, size_t n) {
+// 释放 [base, base+n) 这 n 个连续页，并尽量与相邻空闲块合并
+static void best_fit_free_pages(struct Page *base, size_t n) {
     assert(n > 0);
     for (struct Page *p = base; p != base + n; p++) {
+        // 确保这些页必须是之前分配出去的（不是保留页，也不是空闲块首页）
         assert(!PageReserved(p) && !PageProperty(p));
         p->flags = p->property = 0;
         set_page_ref(p, 0);

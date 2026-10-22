@@ -22,6 +22,13 @@
 # ---------------- 基本变量 ----------------
 # PROJ：项目名，只用于 handin 打包的文件名
 PROJ	:= lab2
+# 默认分配器用于官方评分；make PMM=buddy 可运行伙伴系统。
+PMM ?= best_fit
+ifneq ($(PMM),best_fit)
+ifneq ($(PMM),buddy)
+$(error PMM must be best_fit or buddy)
+endif
+endif
 # EMPTY/SPACE/SLASH：空串、空格、路径分隔符，供 function.mk 拼接路径用
 EMPTY	:=
 SPACE	:= $(EMPTY) $(EMPTY)
@@ -75,6 +82,7 @@ CFLAGS  := -mcmodel=medany -std=gnu99 -Wno-unused -Werror
 CFLAGS	+= -fno-builtin -Wall -O2 -nostdinc $(DEFS)
 CFLAGS	+= -fno-stack-protector -ffunction-sections -fdata-sections
 CFLAGS	+= -g
+CFLAGS  += -DPMM_$(PMM)
 # CFLAGS2：在 CFLAGS 基础上加 -D ucore_test，make test 时用于编译内核（用 = 延迟展开，以包含后面追加的 -I）
 CFLAGS2 = $(CFLAGS) -D ucore_test
 # CTYPE：参与编译的源文件后缀（C 与汇编 .S）
@@ -183,6 +191,13 @@ $(call add_files_cc,$(call listf_cc,$(KSRCDIR)),kernel,$(KCFLAGS))
 endif
 # KOBJS：内核与公共库的全部 .o
 KOBJS	= $(call read_packet,kernel libs)
+
+# 只有 pmm.c 使用选择宏；切换模式时使该对象失效，无需手工 make clean。
+$(call toobj,kern/mm/pmm.c): $(OBJDIR)/.pmm-$(PMM)
+
+$(OBJDIR)/.pmm-$(PMM): | $(OBJDIR)/
+	$(V)$(RM) $(OBJDIR)/.pmm-*
+	$(V)touch $@
 
 # create kernel target
 # 生成内核目标 bin/kernel：

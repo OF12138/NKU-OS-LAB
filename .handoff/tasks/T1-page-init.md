@@ -32,4 +32,5 @@
 `，panic() 自己会换行 → 删除。
 
 ## 留言
+- [lyp 2026-10-21] T3 在 `init_pmm_manager()` 增加 PMM_buddy 条件分支，默认仍为 Best-Fit；page_init、pmm_init 和公共分配接口保持原样。
 - [lyp 2026-10-20] T2 将 `pmm.c:init_pmm_manager()` 默认指向 `best_fit_pmm_manager`，未修改 page_init 或框架测试；

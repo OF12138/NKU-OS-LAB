@@ -20,3 +20,4 @@
 ## 迭代素材
 
 ## 留言
+- [lyp 2026-10-21] T3 在 Makefile 增加 `PMM ?= best_fit` / `PMM=buddy`，并用模式标记依赖触发 pmm.o 重编译，支持不 clean 切回默认管理器；评分脚本未改。
