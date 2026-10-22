@@ -16,7 +16,7 @@
 * 从 Git Bash 调用 wsl 时，要加 `MSYS_NO_PATHCONV=1`，否则 `/mnt/...` 路径会被改写。
 * GDB 连接失败、报 `vMustReplyEmpty: timeout` 时，通常是 1234 端口被残留的 qemu 占用，先执行 `pkill -f qemu-system-riscv64`。
 * 引用仓库代码做实验或截图时，要用 `git archive HEAD code` 导出干净的副本：用户本地可能有未提交的学习注释，会改变源码行号。
-* **WSL 中不要直接在 `~/` 下新建临时目录。** 需要在 WSL 里编译或调试时，统一用 `.claude/tools/sync-wsl.sh [分支]` 把已提交的 code/ 同步到 `~/Code/NKU-OS-LAB/<分支>/code`。
+* **WSL 中不要直接在 `~/` 下新建临时目录。** 需要在 WSL 里编译或调试时，统一用 `.claude/tools/sync-wsl.sh [分支]` 把已提交的 code/ 同步到 `~/Code/NKU-OS-LAB/<分支>/code`。**它必须在 WSL 里运行**（`MSYS_NO_PATHCONV=1 wsl -e bash /mnt/f/Code/OS/NKU-OS-LAB/.claude/tools/sync-wsl.sh`）：在 Git Bash 里直接 `bash` 它时 `$HOME` 是 Windows 用户目录，同步会静默失败，WSL 中仍是旧代码（lab2 写 GDB 教程时踩过，已在脚本中加了检查）。
 
 ## 带符号的 OpenSBI（lab1 用，对应 QEMU 8.2.2）
 
@@ -33,6 +33,8 @@
 * 流程：先用 `.claude/tools/tmux-gdb.sh <WSL 中的 code 目录> "<gdb 命令>" ...` 在 WSL 中建好 tmux 分栏（左栏 make debug，右栏 make gdb），再在 PowerShell 中运行 `.claude/tools/capture-wt.ps1 -Out <png> -Cols 170 -Lines <行数>`。脚本会打开一个 Windows Terminal 窗口（标签标题由 `-Title` 指定，默认 `ucore`；标题会出现在截图里），attach 到 tmux 会话 t2，用 `PrintWindow` 截取后关闭这个窗口。
 * 只需要单栏输出（如 `make qemu`、`make grade`）时，用 `.claude/tools/tmux-run.sh <WSL 中的 code 目录> "<命令>"` 建会话，它会自动设置 PATH 和 QEMU。
 * 截图窗口会弹出几秒，期间用户在键盘上打字会被输入进去，所以截图前要提醒用户。截完后检查画面里有没有多余字符。
+
+* 双 GDB 调试 QEMU（lab2 的 gdb 页表查询分支任务，教程见 `temp/gdb-guide.md`）：双击 `.claude/tools/dual-gdb.cmd` 一键开 Windows Terminal（QEMU 标签 + 左右分栏的 gdb 标签：左 attach QEMU、右 ucore gdb，右栏会等左栏 continue 后自动连接），双击 `dual-gdb-stop.cmd` 一键退出。逻辑在 `dual-gdb.sh`，默认编译工作区的 `code/`（可用环境变量 `DUAL_GDB_CODE` 指向 sync-wsl.sh 导出的目录）。窗格只有退出码为 0 才会自动关闭，所以 stop 先发 SIGTERM、脚本收到后 `exit 0`，不要改成直接 KILL。无头测试可以用 tmux 起三个窗格代替 wt。
 
 ## 画图
 
