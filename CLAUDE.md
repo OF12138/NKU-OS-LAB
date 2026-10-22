@@ -33,6 +33,8 @@
 * 流程：先用 `.claude/tools/tmux-gdb.sh <WSL 中的 code 目录> "<gdb 命令>" ...` 在 WSL 中建好 tmux 分栏（左栏 make debug，右栏 make gdb），再在 PowerShell 中运行 `.claude/tools/capture-wt.ps1 -Out <png> -Cols 170 -Lines <行数>`。脚本会打开一个 Windows Terminal 窗口（标签标题由 `-Title` 指定，默认 `ucore`；标题会出现在截图里），attach 到 tmux 会话 t2，用 `PrintWindow` 截取后关闭这个窗口。
 * 只需要单栏输出（如 `make qemu`、`make grade`）时，用 `.claude/tools/tmux-run.sh <WSL 中的 code 目录> "<命令>"` 建会话，它会自动设置 PATH 和 QEMU。
 * 截图窗口会弹出几秒，期间用户在键盘上打字会被输入进去，所以截图前要提醒用户。截完后检查画面里有没有多余字符。
+* **不弹窗的做法（lab2 T5 起优先使用）**：`tmux capture-pane -p -e -S -300 -t <窗口>` 导出带颜色的文本，再用 `python .claude/tools/tmux-render.py <ans> <png> ["起始文本" ["结束文本"]]` 渲染成浅色主题的 PNG。这样只截需要的窗格（例如双 GDB 时只截调试 QEMU 的 gdb，不截 make debug 的窗口），也不怕用户打字。
+* 用 tmux 向 gdb 发命令时要写 `send-keys -l "<命令>"` 再单独发 `Enter`：不加 `-l` 时，`delete` 这类词会被当成键名。不要在 gdb 提示符下发 `C-l` 清屏，会留下 `quit` 残行；改从历史记录中按起止文本截取。宿主机 gdb 要加 `-iex "set debuginfod enabled off"` 和 `set confirm off`，否则会弹出交互式提问，吃掉后续输入。
 
 * 双 GDB 调试 QEMU（lab2 的 gdb 页表查询分支任务，教程见 `temp/gdb-guide.md`）：双击 `.claude/tools/dual-gdb.cmd` 一键开 Windows Terminal（QEMU 标签 + 左右分栏的 gdb 标签：左 attach QEMU、右 ucore gdb，右栏会等左栏 continue 后自动连接），双击 `dual-gdb-stop.cmd` 一键退出。逻辑在 `dual-gdb.sh`，默认编译工作区的 `code/`（可用环境变量 `DUAL_GDB_CODE` 指向 sync-wsl.sh 导出的目录）。窗格只有退出码为 0 才会自动关闭，所以 stop 先发 SIGTERM、脚本收到后 `exit 0`，不要改成直接 KILL。无头测试可以用 tmux 起三个窗格代替 wt。
 
