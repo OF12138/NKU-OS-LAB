@@ -96,7 +96,7 @@ p/x tlb_addr
 p tlb_hit(tlb_addr, addr)
 ```
 
-![真实 GDB 窗格中的主 TLB 缺失](../images/T5-tlb-miss.png)
+<img src="../images/T5-tlb-miss.png" alt="真实 GDB 窗格中的主 TLB 缺失" style="zoom:50%;" />
 
 <p align="center">图 T5-4　栈页第一次写入时，主表第 7 项无效</p>
 
@@ -174,7 +174,7 @@ p vidx
 
 第一次访问设备树时还没有可复用的表项，因此要跳过。后一次停下时，调用者是 `load_helper`；本次是读访问，`elt_ofs=0`，对应 `addr_read`。`vidx=0`，说明在第 0 个 victim 项找到了目标。保存交换前的两个标签，再 `finish` 执行完函数，结果如下：
 
-![真实 GDB 窗格中的 victim 表项交换](../images/T5-tlb-victim.png)
+<img src="../images/T5-tlb-victim.png" alt="真实 GDB 窗格中的 victim 表项交换" style="zoom:50%;" />
 
 <p align="center">图 T5-7　victim 命中返回 true，设备树页与代码页交换位置</p>
 
@@ -204,7 +204,7 @@ p vidx
 
 区别在 `get_physical_address` 内部。Bare 命中 `case VM_1_10_MBARE`，在 `cpu_helper.c:197` 直接执行 `*physical = addr`，不读页表。Sv39 则进入页表遍历，得到栈页物理地址。最后两次都调用 `tlb_set_page_with_attrs`，并非只有开启分页才填软件 TLB。
 
-![真实 GDB 窗格中的 Bare 与 Sv39 实测值](../images/T5-tlb-modes.png)
+<img src="../images/T5-tlb-modes.png" alt="真实 GDB 窗格中的 Bare 与 Sv39 实测值" style="zoom:50%;" />
 
 <p align="center">图 T5-8　同一轮启动中保存的两次访存结果</p>
 
