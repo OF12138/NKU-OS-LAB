@@ -111,7 +111,7 @@ SLUB **没有**注册成一个新的 `pmm_manager`，而是作为独立模块接
 
 ### 测试设计与覆盖
 
-测试入口是 [`slub_check()`](../../code/kern/mm/slub_test.c)，在 `slub_init()` 后运行。执行一次 `make qemu`，即可依次检查七种小对象缓存、跨页复用、大对象分配与释放，以及基本边界情况。测试同时核对返回地址、对象内容和缓存统计，避免只凭“能分配成功”判断实现正确。
+测试入口是 `slub_check()`（`code/kern/mm/slub_test.c`），在 `slub_init()` 后运行。执行一次 `make qemu`，即可依次检查七种小对象缓存、跨页复用、大对象分配与释放，以及基本边界情况。测试同时核对返回地址、对象内容和缓存统计，避免只凭“能分配成功”判断实现正确。
 
 #### 1. 各大小缓存的分配与释放
 
@@ -159,9 +159,9 @@ SLUB **没有**注册成一个新的 `pmm_manager`，而是作为独立模块接
 
 2026-10-22，在默认 Best-Fit、QEMU 4.1.1/OpenSBI v0.4 环境下重新验证：
 
-- [`make`](../../temp/T4-make.log)：编译通过。
-- [`make qemu`](../../temp/T4-qemu.log)：SLUB 测试全部通过，末尾输出 `[SLUB] all checks passed (retained 7 active slab pages)`；这是本节测试的直接结果。
-- [`make grade`](../../temp/T4-grade.log)：原有 page init 与 Best-Fit 测试均为 OK，总分 **20/20**，与修改前一致。该分数用于确认页分配功能未退化，不直接评定 SLUB。
+- `make`（`temp/T4-make.log`）：编译通过。
+- `make qemu`（`temp/T4-qemu.log`）：SLUB 测试全部通过，末尾输出 `[SLUB] all checks passed (retained 7 active slab pages)`；这是本节测试的直接结果。
+- `make grade`（`temp/T4-grade.log`）：原有 page init 与 Best-Fit 测试均为 OK，总分 **20/20**，与修改前一致。该分数用于确认页分配功能未退化，不直接评定 SLUB。
 
 复现时，在已配置交叉工具链的 Linux/WSL 登录 shell 中，从仓库根目录执行：
 
