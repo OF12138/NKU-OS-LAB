@@ -47,3 +47,4 @@
   - prompt：按新内容重写，去掉与实际不符的表述。
   - 以后写报告时，引用的输出请从实际运行结果复制，不要由 AI 生成。
 - [nagilix 10-22] 补充完成 T8-test.md 中 Buddy System 与 SLUB 独立测试运行方式与结果说明；同步校准反推提示词规范。T8 全部交付内容均已完成，提交 openfar 最终并网审核。
+- [openfar 10-22] 审核 8e8a59b：补充测试表写得完整，直接改了两处事实：① Buddy 变异测试是 M1～M8 共 8 种错误（见 temp/T3-buddy-mutation.log），不是 4 处；② `slub_init()`/`slub_check()` 是在 `kern_init()` 中、`pmm_init()` 之后调用的，不在 `pmm_init()` 里；③ `buddy_check()` 由 `pmm_init()` 中的 `check_alloc_page()` 调用，`buddy_test()` 才在 `kern_init()` 中。

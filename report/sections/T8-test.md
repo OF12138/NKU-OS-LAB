@@ -38,5 +38,5 @@
 | :--- | :--- | :--- |
 | page_init | 用 `-m 64M`、默认 128M、`-m 256M` 启动，打印 `npage` 和空闲页数 | 空闲页 15705、31929、31929，与手算一致；256M 时上界被截断到 0x88000000 |
 | Best-Fit | `code/tests/run_best_fit.sh`：在临时副本中接入 `best_fit_regression.c`，检查最小块选择、同大小选低地址、分裂、碎片导致分配失败、前后合并 | 三组检查全部 PASS，测试后空闲页恢复为 31929 |
-| Buddy System | `make PMM=buddy qemu`：在 `kern_init()` 中依次运行自检 `buddy_check()` 和独立测试 `buddy_test()`（由提示词二生成），覆盖伙伴块分裂与合并、对齐向上取整与数据隔离、相邻非伙伴隔离与碎片分配失败、非对齐奇数长度及分段 `init_memmap`；变异测试检验断言有效性 | 四组检查全部 PASS，最后输出 `[BUDDY] all tests passed (31919 free pages restored)`；64 MiB 启动同样全部通过（15695 free pages restored）；变异测试注入的 4 处 bug 全部被断言拦截 |
-| SLUB | `make qemu`：在 `pmm_init()` 中由 `slub_init()` 建立 7 个通用缓存后调用 `slub_check()`（由提示词二生成），覆盖各大小缓存单 slab 满页与扩容、partial 状态转换与回收、批量分配与释放复用、大对象页级回退与单页边界检查 | 启动自测全部 PASS，末尾输出 `[SLUB] all checks passed (retained 7 active slab pages)`，七个缓存各保留一个活动空 slab，`make grade` 维持 20/20 |
+| Buddy System | `make PMM=buddy qemu`：`pmm_init()` 中的 `check_alloc_page()` 先运行实现方自检 `buddy_check()`，之后 `kern_init()` 运行独立测试 `buddy_test()`（由提示词二生成），覆盖伙伴块分裂与合并、对齐向上取整与数据隔离、相邻非伙伴隔离与碎片分配失败、非对齐奇数长度及分段 `init_memmap`；变异测试检验断言有效性 | 四组检查全部 PASS，最后输出 `[BUDDY] all tests passed (31919 free pages restored)`；64 MiB 启动同样全部通过（15695 free pages restored）；变异测试注入的 8 种典型错误（M1～M8）全部被断言发现 |
+| SLUB | `make qemu`：`kern_init()` 在 `pmm_init()` 之后由 `slub_init()` 建立 7 个通用缓存后调用 `slub_check()`（由提示词二生成），覆盖各大小缓存单 slab 满页与扩容、partial 状态转换与回收、批量分配与释放复用、大对象页级回退与单页边界检查 | 启动自测全部 PASS，末尾输出 `[SLUB] all checks passed (retained 7 active slab pages)`，七个缓存各保留一个活动空 slab，`make grade` 维持 20/20 |
