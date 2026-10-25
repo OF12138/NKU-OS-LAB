@@ -75,6 +75,7 @@ struct Page
 #define PageProperty(page)          (((page)->flags >> PG_property) & 1)
 
 // convert list entry to page
+//就是 contianer_of 的写法， le2slab, le2cache 也是同一个 to_struct
 #define le2page(le, member)                 \
     to_struct((le), struct Page, member)
 

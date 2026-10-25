@@ -77,3 +77,20 @@ typedef size_t ppn_t;
 
 #endif /* !__LIBS_DEFS_H__ */
 
+
+/*
+mechanisim:成员相对结构体首地址的偏移，在编译期就确定了，对每个 Page 都一样。所以只要知道成员的地址和偏移，减一下就得到首地址。
+Page 首地址 p
+  │
+  ▼
+  +--------+--------+-----------+-----------------+
+  | ref    | flags  | property  | page_link       |
+  +--------+--------+-----------+-----------------+
+  p+0      p+8      p+16        p+24
+                                 ▲
+                                 └─ le 指向这里（链表里存的就是这个地址）
+
+Page 首地址 = le - 24 = le - offsetof(struct Page, page_link)
+
+*/
+

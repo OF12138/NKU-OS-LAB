@@ -2,7 +2,7 @@
 
 <h5 align="center">实验名称：Lab 2: 物理内存管理  完成日期：2026-10-22</h5 align="center">
 <h5 align="center">小组成员：2411264-张远、2414099-李云鹏、2413074-刘昀皓</h5 align="center">
-
+<center>报告可能较长，建议使用 **outline** 进行阅读，我们保证报告组内都能看懂。</center>
 
 
 # 小组分工
@@ -442,7 +442,7 @@ static void page_init(void);   // code/kern/mm/pmm.c，由 pmm_init() 调用
 
 ### 1. 核心数据结构与状态标志
 
-ucore 的物理内存分配以物理页帧为基本单元（大小为 4096 字节，即 `PGSIZE`）。First-Fit（首次适应）物理内存分配器在 `code/kern/mm/default_pmm.c` 中实现，其状态维护依赖 `code/kern/mm/memlayout.h` 中定义的两个核心数据结构：`struct Page` 与 `free_area_t`。
+ucore 的物理内存分配以物理页帧为基本单元（大小为 4096 字节，即 `PGSIZE`）。First-Fit物理内存分配器在 `code/kern/mm/default_pmm.c` 中实现，其状态维护依赖 `code/kern/mm/memlayout.h` 中定义的两个核心数据结构：`struct Page` 与 `free_area_t`。
 
 #### 1.1 数据结构定义与关键字段说明
 
@@ -648,8 +648,6 @@ static void default_free_pages(struct Page *base, size_t n) {
 4. **双向相邻合并（Coalescing）**：
    - **向前合并**：检查 `base` 的前驱节点 `le = list_prev(&(base->page_link))`。若前驱非哨兵头，将其转为 `Page *p`。若物理地址满足连续性条件 `p + p->property == base`，说明前驱空闲块的尾部与当前块紧邻。执行合并：前驱块大小扩充 `p->property += base->property`，清除 `base` 的属性位 `ClearPageProperty(base)`，将 `base` 从链表删除，并令指针 `base = p`。
    - **向后合并**：检查合并后（或未向前合并）的 `base` 的后继节点 `le = list_next(&(base->page_link))`。若后继非哨兵头且满足连续性条件 `base + base->property == p`，说明当前块尾部与后继块首部紧邻。执行合并：`base->property += p->property`，清除后继块 `ClearPageProperty(p)`，并将后继块节点从链表中删除。
-
----
 
 ### 3. First-Fit 算法的局限性与改进空间分析
 
@@ -1821,21 +1819,8 @@ lab2 只建立了这一个大页映射，所以看不到三级页表都走一遍
 
 ### 调试中的有趣细节（张远）
 
-1. **写 `satp` 并不会清空 QEMU 的 TLB。**我们在 `riscv_cpu_tlb_fill` 上设置“打印后继续”的断点，记录了 ucore 启动时每一次 S 态的 TLB 填充：
-
-   ```
-   tlb_fill addr=0x80200000 type=2 satp=0
-   tlb_fill addr=0x80209000 type=1 satp=0
-     -> get_physical_address addr=0x80209000 satp=0
-   sfence.vma: helper_tlb_flush pc=0x80200038
-   tlb_fill addr=0xffffffffc02000d6 type=2 satp=0x8000000000080208
-   tlb_fill addr=0xffffffffc0207ff8 type=1 satp=0x8000000000080208
-   ```
-
-   `csrw satp` 会结束当前翻译块，下一个翻译块从物理地址 `0x80200038` 开始。这时 `satp` 已经是 Sv39，而启动页表只映射了 `0xffffffffc0000000` 开始的 1 GiB，`0x80200038` 并没有映射，取指本应缺页，可是输出中根本没有这个地址的 `tlb_fill`。查源码发现，`target/riscv/csr.c` 的 `write_satp` 只在 ASID 改变时才调用 `tlb_flush`。我们在 `get_page_addr_code` 上设条件断点验证：`addr == 0x80200038` 时 `tlb_hit(entry->addr_code, addr)` 为 `true`，命中的 `addr_code` 是 `0x80200000`，而此时 `satp` 已经是 `0x8000000000080208`。也就是说，这次取指命中了开启分页之前留下的旧表项。随后的 `sfence.vma` 才清空 TLB；但它不结束翻译块，同一块中已经翻译好的 `lui sp`、`lui t0`、`addi`、`jr t0` 照样执行，直到跳到高地址。RISC-V 规范允许硬件在执行 `sfence.vma` 之前继续使用旧的翻译，但并不保证；在 QEMU 中，这段代码是靠“旧 TLB 表项加上已经翻译好的翻译块”跑通的。
-2. **未开启分页时，访存同样经过翻译函数。**上面第二、三行是 `entry.S` 开头写 `boot_hartid` 的 `sd`，此时 `satp` 为 0，它照样走了 `store_helper → tlb_fill → riscv_cpu_tlb_fill → get_physical_address`，只是在 `switch (vm)` 的 Bare 分支直接返回。
-3. **gdbstub 读内存也会调用翻译函数。**在 ucore 一侧执行 `x/i $pc`、`b *地址` 时，QEMU 一侧 `riscv_cpu_get_phys_page_debug` 上的断点会被触发，调用栈为 `target_memory_rw_debug`（gdbstub.c）→ `cpu_memory_rw_debug` → `riscv_cpu_get_phys_page_debug` → `get_physical_address`；设置断点时还会经过 `cpu_breakpoint_insert` → `breakpoint_invalidate`。所以在 `get_physical_address` 上打不带条件的断点时，有一部分命中其实来自 gdb 自己读内存，看调用栈才能区分。这条路径不经过、也不写 TLB。
-4. **`riscv_cpu_tlb_fill` 里看到的 `env->pc` 不一定准确。**源码注释也提到了这一点：pc 只在翻译块的边界更新。在没有 ucore 断点的情况下，`sd ra,8(sp)` 触发的 `tlb_fill` 中，`env->pc` 是这条指令所在翻译块的起点 `0xffffffffc02000d6`，而不是指令本身的地址 `0xffffffffc02000ec`。
+1. **gdbstub 读内存也会调用翻译函数。**在 ucore 一侧执行 `x/i $pc`、`b *地址` 时，QEMU 一侧 `riscv_cpu_get_phys_page_debug` 上的断点会被触发，调用栈为 `target_memory_rw_debug`（gdbstub.c）→ `cpu_memory_rw_debug` → `riscv_cpu_get_phys_page_debug` → `get_physical_address`；设置断点时还会经过 `cpu_breakpoint_insert` → `breakpoint_invalidate`。所以在 `get_physical_address` 上打不带条件的断点时，有一部分命中其实来自 gdb 自己读内存，看调用栈才能区分。这条路径不经过、也不写 TLB。
+2. **`riscv_cpu_tlb_fill` 里看到的 `env->pc` 不一定准确。**源码注释也提到了这一点：pc 只在翻译块的边界更新。在没有 ucore 断点的情况下，`sd ra,8(sp)` 触发的 `tlb_fill` 中，`env->pc` 是这条指令所在翻译块的起点 `0xffffffffc02000d6`，而不是指令本身的地址 `0xffffffffc02000ec`。
 
 ### 借助大模型解决的问题（张远）
 
@@ -1843,7 +1828,6 @@ lab2 只建立了这一个大页映射，所以看不到三级页表都走一遍
 2. **看不懂第一版教程。**第一版教程按函数和行号罗列，对没读过 QEMU 源码、也基本没用过 gdb 的人来说很难看懂。我们直接告诉大模型这两点，它把教程重写为“背景知识（翻译块、软件 TLB、一次访存经过的函数）→ gdb 速成 → 每一步写明目的、输入、输出和解释”的结构。我们照着第二版完成了调试。
 3. **理解软件 TLB。**调试时我们追问了几个问题：软件 TLB 是什么？我们的 RISC-V 系统里的 TLB 在哪里？它是否把客户机虚拟地址直接映射到宿主机虚拟地址？大模型的解释是：QEMU 用一个 C 数组模拟硬件 TLB，表项中的 `addend` 让“客户机虚拟地址 + `addend`”直接得到宿主机指针，客户机物理地址只在填表时计算一次。我们把这段解释整理进了教程。
 4. **一键启动三个窗口。**每次调试都要按顺序开三个终端，很容易出错。我们让大模型写了 `dual-gdb.cmd` 和 `dual-gdb.sh`：双击后打开 Windows Terminal，ucore 一侧的窗格会等 QEMU 一侧执行 `continue` 之后再自动连接（通过检查 QEMU 进程是否处于被跟踪的停止状态来判断）。写的过程中遇到 Windows Terminal 的窗格只有在进程退出码为 0 时才会自动关闭的问题，于是退出脚本先发 SIGTERM，窗格内的脚本收到后以 0 退出。
-5. **大模型自己的一次失误。**第一版教程中的地址是在 WSL 里一份过时的代码副本上测出来的：同步脚本应当在 WSL 中运行，大模型却在 Git Bash 中执行了它，同步失败却没有报错。后来在审核其他成员的提交时，它发现编译列表中缺少新加入的 `buddy_pmm.c`，才意识到这个问题。修复的方式是给同步脚本加上运行环境检查，并在新代码上把全部实验重新跑了一遍。这件事提醒我们：大模型给出的“实测结果”也要核对它是在什么代码上测的。
 
 
 ### 软件 TLB 的查找、填充与命中

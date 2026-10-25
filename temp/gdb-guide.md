@@ -106,11 +106,11 @@ QEMU 也有一个 TLB，但它是一个**普通的 C 数组**，叫软件 TLB（
                      ▼                                   ▼
     get_page_addr_code()                  生成的 x86 代码里直接查 TLB（快速路径）
     cputlb.c:1023                                 │命中：直接访存，不调用任何 C 函数
-    查 TLB，没命中 ──┐                            │没命中
+    查 TLB，没命中   ──┐                            │没命中
                      │                            ▼
                      │                  helper_le_stq_mmu() 等 → store_helper() / load_helper()
                      │                  cputlb.c:1501 / 1248
-                     │                  用 C 再查一次 TLB 和 victim TLB，都没命中 ──┐
+                     │                  用 C 再查一次 TLB 和 victim TLB，都没命中    ──┐
                      ▼                                                             │
                 tlb_fill()  cputlb.c:868   ◄───────────────────────────────────────┘
                 “TLB 缺失了，请当前 CPU 架构自己去填”
