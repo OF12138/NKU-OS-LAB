@@ -2,7 +2,7 @@
 
 <h5 align="center">实验名称：Lab 2: 物理内存管理  完成日期：2026-10-22</h5 align="center">
 <h5 align="center">小组成员：2411264-张远、2414099-李云鹏、2413074-刘昀皓</h5 align="center">
-<center>报告可能较长，建议使用 **outline** 进行阅读，我们保证报告组内都能看懂。</center>
+<p align="center">报告可能较长，建议使用 <b>outline</b> 进行阅读，我们保证报告组内都能看懂。</p>
 
 
 # 小组分工
@@ -1712,7 +1712,7 @@ QEMU 并不是逐条解释 RISC-V 指令。它把一小段指令（一个翻译�
 | #6～#4 | `helper_lookup_tb_ptr` → `tb_htable_lookup` | `jr t0` 的目标要到运行时才知道，于是查找下一个翻译块。翻译块按**物理地址**缓存，所以要先把目标 pc 翻译成物理地址 |
 | #3 | `get_page_addr_code` | 取指方向查 QEMU 的软件 TLB。刚开启分页，`0xffffffffc0200000` 这一页没有被访问过，未命中 |
 | #2 | `tlb_fill` | 与体系结构无关的通用代码，通过函数指针转调 RISC-V 的填充函数 |
-| #1 | `riscv_cpu_tlb_fill` | 调用翻译函数，成功就写 TLB，失败就向客户机抛缺页异常 |
+| #1 | `riscv_cpu_tlb_fill` | 调用 get_physical_address，成功就写 TLB，失败就向客户机抛缺页异常 |
 | #0 | `get_physical_address` | 按 RISC-V 规范遍历页表 |
 
 数据访存走的是另一个入口。在 ucore 一侧把断点设在 `kern_init` 中的 `sd ra,8(sp)`（`0xffffffffc02000ec`，写入地址为 `sp + 8 = 0xffffffffc0207ff8`），QEMU 一侧在 `riscv_cpu_tlb_fill` 上按这个地址设条件断点，ucore 一侧 `si` 之后得到的调用栈是：
@@ -1819,8 +1819,20 @@ lab2 只建立了这一个大页映射，所以看不到三级页表都走一遍
 
 ### 调试中的有趣细节（张远）
 
-1. **gdbstub 读内存也会调用翻译函数。**在 ucore 一侧执行 `x/i $pc`、`b *地址` 时，QEMU 一侧 `riscv_cpu_get_phys_page_debug` 上的断点会被触发，调用栈为 `target_memory_rw_debug`（gdbstub.c）→ `cpu_memory_rw_debug` → `riscv_cpu_get_phys_page_debug` → `get_physical_address`；设置断点时还会经过 `cpu_breakpoint_insert` → `breakpoint_invalidate`。所以在 `get_physical_address` 上打不带条件的断点时，有一部分命中其实来自 gdb 自己读内存，看调用栈才能区分。这条路径不经过、也不写 TLB。
-2. **`riscv_cpu_tlb_fill` 里看到的 `env->pc` 不一定准确。**源码注释也提到了这一点：pc 只在翻译块的边界更新。在没有 ucore 断点的情况下，`sd ra,8(sp)` 触发的 `tlb_fill` 中，`env->pc` 是这条指令所在翻译块的起点 `0xffffffffc02000d6`，而不是指令本身的地址 `0xffffffffc02000ec`。
+1. **写 `satp` 并不会清空 QEMU 的 TLB。**我们在 `riscv_cpu_tlb_fill` 上设置“打印后继续”的断点，记录了 ucore 启动时每一次 S 态的 TLB 填充：
+
+   ```
+   tlb_fill addr=0x80200000 type=2 satp=0
+   tlb_fill addr=0x80209000 type=1 satp=0
+     -> get_physical_address addr=0x80209000 satp=0
+   sfence.vma: helper_tlb_flush pc=0x80200038
+   tlb_fill addr=0xffffffffc02000d6 type=2 satp=0x8000000000080208
+   tlb_fill addr=0xffffffffc0207ff8 type=1 satp=0x8000000000080208
+   ```
+
+   `csrw satp` 会结束当前翻译块，下一个翻译块从物理地址 `0x80200038` 开始。这时 `satp` 已经是 Sv39，而启动页表只映射了 `0xffffffffc0000000` 开始的 1 GiB，`0x80200038` 并没有映射，取指本应缺页，可是输出中根本没有这个地址的 `tlb_fill`。查源码发现，`target/riscv/csr.c` 的 `write_satp` 只在 ASID 改变时才调用 `tlb_flush`。我们在 `get_page_addr_code` 上设条件断点验证：`addr == 0x80200038` 时 `tlb_hit(entry->addr_code, addr)` 为 `true`，命中的 `addr_code` 是 `0x80200000`，而此时 `satp` 已经是 `0x8000000000080208`。也就是说，这次取指命中了开启分页之前留下的旧表项。随后的 `sfence.vma` 才清空 TLB；但它不结束翻译块，同一块中已经翻译好的 `lui sp`、`lui t0`、`addi`、`jr t0` 照样执行，直到跳到高地址。RISC-V 规范允许硬件在执行 `sfence.vma` 之前继续使用旧的翻译，但并不保证；在 QEMU 中，这段代码是靠“旧 TLB 表项加上已经翻译好的翻译块”跑通的。
+2. **gdbstub 读内存也会调用翻译函数。**在 ucore 一侧执行 `x/i $pc`、`b *地址` 时，QEMU 一侧 `riscv_cpu_get_phys_page_debug` 上的断点会被触发，调用栈为 `target_memory_rw_debug`（gdbstub.c）→ `cpu_memory_rw_debug` → `riscv_cpu_get_phys_page_debug` → `get_physical_address`；设置断点时还会经过 `cpu_breakpoint_insert` → `breakpoint_invalidate`。所以在 `get_physical_address` 上打不带条件的断点时，有一部分命中其实来自 gdb 自己读内存，看调用栈才能区分。这条路径不经过、也不写 TLB。
+3. **`riscv_cpu_tlb_fill` 里看到的 `env->pc` 不一定准确。**源码注释也提到了这一点：pc 只在翻译块的边界更新。在没有 ucore 断点的情况下，`sd ra,8(sp)` 触发的 `tlb_fill` 中，`env->pc` 是这条指令所在翻译块的起点 `0xffffffffc02000d6`，而不是指令本身的地址 `0xffffffffc02000ec`。
 
 ### 借助大模型解决的问题（张远）
 
@@ -2177,5 +2189,3 @@ Bare 的语义依据 [RISC-V 特权规范的 `satp` 说明](https://docs.riscv.o
 5. **提示词按实际工作反推，并用脚本校验。** 提示词在每个子目标完成后由 Agent 根据真实代码整理，`[RELY]` 中引用的代码用脚本 `check-rely.py` 逐行核对，确保与框架代码一致。成员加入学习注释后改动了代码格式，于是 `[RELY]` 统一引用导入时的框架原始代码，脚本也改为同时对照该版本。
 
 6. **学习注释不能改变行为。** 成员在阅读代码时会加入大量注释，甚至调整格式。每次提交前都把加注释前后的代码分别编译，比较各段大小和指令序列，确认只是注释变化。
-
-（本节为初稿，各成员可补充自己的体会。）
