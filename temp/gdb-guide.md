@@ -8,7 +8,7 @@
 2. **gdb 速成**：只讲本教程用到的十几条命令，以及怎么读 gdb 的输出。
 3. **实验**：每一步都写明 **目的 → 输入 → 输出 → 解释**。
 
-下文所有命令和输出都在统一环境（WSL2 Ubuntu 24.04、QEMU 4.1.1 `--enable-debug`、lab2 分支提交 2bc1801 的代码，即 lyp 简化 SLUB 测试之后的版本）中实际跑过。代码改动后，地址和行号可能会变，第 3.3 节说明了怎么核对。
+下文所有命令和输出都在统一环境（WSL2 Ubuntu 24.04、QEMU 4.1.1 `--enable-debug`、lab2 分支提交 79d8dc7 的代码，即最终提交的版本；工具链为本机的 riscv64-unknown-elf-gcc）中实际跑过。代码或工具链不同时，地址和行号可能会变（例如用 SiFive gcc 10.2 编译，`kern_init` 在 `0xffffffffc02000d8`），第 3.3 节说明了怎么核对。
 
 ---
 
@@ -243,14 +243,18 @@ gdb --version | head -1  # 普通的 x86 gdb；没有就 sudo apt install gdb
 ## 3.2 准备代码
 
 ```bash
-bash /mnt/f/Code/OS/NKU-OS-LAB/.claude/tools/sync-wsl.sh   # 在 WSL 中执行：把已提交的 code/ 复制到 ~/Code/NKU-OS-LAB/lab2/code
+bash /mnt/f/Code/OS/NKU-OS-LAB/.claude/tools/sync-wsl.sh lab2   # 在 WSL 中执行：把已提交的 code/ 复制到 ~/Code/NKU-OS-LAB/lab2/code
 cd ~/Code/NKU-OS-LAB/lab2/code && make
 ```
+
+* `sync-wsl.sh` 只导出**已提交**的代码（`git archive`），本地未提交的学习注释不会带过去，这样源码行号和本教程一致。
+* 它**必须在 WSL 里运行**。在 Windows 侧（Git Bash）要写成 `MSYS_NO_PATHCONV=1 wsl -e bash /mnt/f/Code/OS/NKU-OS-LAB/.claude/tools/sync-wsl.sh lab2`；直接在 Git Bash 里 `bash` 它时 `$HOME` 是 Windows 用户目录，同步会失败。
+* 不想手动开三个终端时，可以双击 `.claude/tools/dual-gdb.cmd`：它在 Windows Terminal 中一次开好 QEMU 标签和左右分栏的两个 gdb（左 attach QEMU，右 ucore gdb，右栏等左栏 `continue` 后自动连接）；结束时双击 `dual-gdb-stop.cmd`。
 
 ## 3.3 查出要观察的地址
 
 ```bash
-riscv64-unknown-elf-nm bin/kernel | grep -E " (kern_entry|kern_init|boot_page_table_sv39)$"
+riscv64-unknown-elf-nm bin/kernel | grep -E " (kern_entry|kern_init|bootstacktop|boot_page_table_sv39|boot_hartid)$"
 riscv64-unknown-elf-objdump -d bin/kernel --start-address=0xffffffffc02000d6 | head -20
 ```
 
@@ -261,7 +265,9 @@ riscv64-unknown-elf-objdump -d bin/kernel --start-address=0xffffffffc02000d6 | h
 ```
 ffffffffc0200000 T kern_entry
 ffffffffc02000d6 T kern_init
-ffffffffc0206000 D boot_page_table_sv39
+ffffffffc0208000 D bootstacktop
+ffffffffc0208000 D boot_page_table_sv39
+ffffffffc0209000 D boot_hartid
 
 ffffffffc02000e6:  1141       addi  sp,sp,-16
 ffffffffc02000ec:  e406       sd    ra,8(sp)
@@ -270,10 +276,10 @@ ffffffffc02000ec:  e406       sd    ra,8(sp)
 **解释**：
 
 * `kern_init = 0xffffffffc02000d6`：`entry.S` 打开分页后，最后一条 `jr t0` 跳到这里。所以**开启分页后的第一次取指一定访问这个地址**，实验一就用它。
-* `sd ra,8(sp)` 位于 `0xffffffffc02000ec`。上一条指令执行完后 `sp = 0xffffffffc0205ff0`，所以这条指令会**写地址 `0xffffffffc0205ff8`**，实验三用它演示数据访存。
-* `boot_page_table_sv39` 在虚拟地址 `0xffffffffc0206000`，即物理地址 `0x80206000`，后面会在 satp 里看到它。
+* `sd ra,8(sp)` 位于 `0xffffffffc02000ec`。`entry.S` 把 sp 设成 `bootstacktop`（`0xffffffffc0208000`），上一条 `addi sp,sp,-16` 执行完后 `sp = 0xffffffffc0207ff0`，所以这条指令会**写地址 `0xffffffffc0207ff8`**，实验三用它演示数据访存。
+* `boot_page_table_sv39` 在虚拟地址 `0xffffffffc0208000`，即物理地址 `0x80208000`，后面会在 satp 里看到它。
 
-你查到的地址如果不同，后面的命令照着替换即可。
+你查到的地址如果不同，后面的命令照着替换即可。需要同步替换的有：`kern_init`、`sd ra,8(sp)` 的地址和它写的栈地址、satp 中的根页表页号、实验四中栈页在 TLB 中的下标（栈页页号的低 6 位），以及实验五中 `boot_hartid` 的物理地址（`nm` 中 `boot_hartid` 的地址减去 `0xffffffff40000000`）。
 
 ## 3.4 开三个终端
 
@@ -405,14 +411,14 @@ Thread 2 "qemu-system-ris" hit Breakpoint 1, get_physical_address (env=0x5654eb5
 
 ```gdb
 (gdb) p/x env->satp
-$1 = 0x8000000000080206
+$1 = 0x8000000000080208
 (gdb) p/x env->pc
 $2 = 0xffffffffc02000d6
 ```
 
 **目的**：确认分页已经打开，并找到根页表在哪里。
 
-**解释**：satp 的最高 4 位 `8` 表示 Sv39 模式，低 44 位 `0x80206` 是根页表的物理页号。乘以 4096（左移 12 位）得到 `0x80206000`，正是 3.3 节查到的 `boot_page_table_sv39` 的物理地址。
+**解释**：satp 的最高 4 位 `8` 表示 Sv39 模式，低 44 位 `0x80208` 是根页表的物理页号。乘以 4096（左移 12 位）得到 `0x80208000`，正是 3.3 节查到的 `boot_page_table_sv39` 的物理地址。
 
 ### 步骤 5：跳过查表过程，直接看结果
 
@@ -545,11 +551,11 @@ $5 = 0
 (gdb) p/x idx
 $6 = 0x1ff
 (gdb) p/x pte_addr
-$7 = 0x80206ff8
+$7 = 0x80208ff8
 (gdb) p/x pte
 $8 = 0x200000cf
 (gdb) p/x base
-$9 = 0x80206000
+$9 = 0x80208000
 ```
 
 **逐个解释**：
@@ -557,9 +563,9 @@ $9 = 0x80206000
 | 变量 | 值 | 怎么来的 |
 | :--- | :--- | :--- |
 | `i` | 0 | 正在查第一级（根页表） |
-| `base` | `0x80206000` | 根页表的物理地址，就是 satp 中的 `0x80206` 左移 12 位 |
+| `base` | `0x80208000` | 根页表的物理地址，就是 satp 中的 `0x80208` 左移 12 位 |
 | `idx` | `0x1ff`（511） | `0xffffffffc02000d6` 右移 30 位后取低 9 位：`0x...ff` 的低 9 位全是 1，即 511 |
-| `pte_addr` | `0x80206ff8` | `0x80206000 + 511 × 8`，即根页表的最后一项 |
+| `pte_addr` | `0x80208ff8` | `0x80208000 + 511 × 8`，即根页表的最后一项 |
 | `pte` | `0x200000cf` | 从这个地址读出的 8 字节。对照 `entry.S`：`.quad (0x80000 << 10) \| 0xcf`，`0x80000 << 10 = 0x20000000`，再或上 `0xcf`，完全一致 |
 
 把 `pte` 的低 8 位 `0xcf` = `1100 1111` 按位展开：
@@ -622,11 +628,11 @@ $13 = 0x80200000
 
 ```gdb
 (gdb) handle SIGPIPE nostop noprint
-(gdb) break riscv_cpu_tlb_fill if address == 0xffffffffc0205ff8
+(gdb) break riscv_cpu_tlb_fill if address == 0xffffffffc0207ff8
 (gdb) continue
 ```
 
-**目的**：`0xffffffffc0205ff8` 是 `sd ra,8(sp)` 要写的地址（3.3 节）。这次把断点打在 `riscv_cpu_tlb_fill` 上，因为我们关心的是“谁请求了填 TLB”。在这个函数里，地址参数叫 `address`，不叫 `addr`。
+**目的**：`0xffffffffc0207ff8` 是 `sd ra,8(sp)` 要写的地址（3.3 节）。这次把断点打在 `riscv_cpu_tlb_fill` 上，因为我们关心的是“谁请求了填 TLB”。在这个函数里，地址参数叫 `address`，不叫 `addr`。
 
 ### 步骤 2：终端 3 让 ucore 停在这条指令前
 
@@ -637,14 +643,14 @@ $ make gdb
 ```
 
 ```
-Breakpoint 1, 0xffffffffc02000ec in kern_init () at kern/init/init.c:30
+Breakpoint 1, 0xffffffffc02000ec in kern_init () at kern/init/init.c:32
 ```
 
 ```gdb
 (gdb) x/i $pc
 => 0xffffffffc02000ec <kern_init+22>:	sd	ra,8(sp)
 (gdb) p/x $sp
-$1 = 0xffffffffc0205ff0
+$1 = 0xffffffffc0207ff0
 (gdb) p/x $ra
 $2 = 0x80000a02
 ```
@@ -653,7 +659,7 @@ $2 = 0x80000a02
 
 * `b *0xffffffffc02000ec`：在这条指令的地址上设断点。地址前面要加 `*`，否则 gdb 会把它当成符号名。
 * `x/i $pc`：反汇编当前 pc 处的指令，确认停在了 `sd ra,8(sp)`。
-* `$sp = 0xffffffffc0205ff0`，所以写入地址 = sp + 8 = `0xffffffffc0205ff8`，与终端 2 的条件一致。
+* `$sp = 0xffffffffc0207ff0`，所以写入地址 = sp + 8 = `0xffffffffc0207ff8`，与终端 2 的条件一致。
 * `$ra = 0x80000a02`：这条指令要写进内存的值（OpenSBI 中的一个返回地址），下面会在 QEMU 中看到它。
 
 ### 步骤 3：终端 3 单步执行这条指令
@@ -667,7 +673,7 @@ $2 = 0x80000a02
 ### 步骤 4：终端 2 看调用栈
 
 ```
-Breakpoint 2, riscv_cpu_tlb_fill (cs=..., address=18446744072637931512, size=8,
+Breakpoint 2, riscv_cpu_tlb_fill (cs=..., address=18446744072637939704, size=8,
     access_type=MMU_DATA_STORE, mmu_idx=1, probe=false, retaddr=139745316372805) at .../cpu_helper.c:438
 ```
 
@@ -678,7 +684,7 @@ Breakpoint 2, riscv_cpu_tlb_fill (cs=..., address=18446744072637931512, size=8,
 ```
 #0  riscv_cpu_tlb_fill (... access_type=MMU_DATA_STORE ...) at target/riscv/cpu_helper.c:438
 #1  tlb_fill (...) at accel/tcg/cputlb.c:878
-#2  store_helper (big_endian=false, size=8, ..., val=2147486210, addr=18446744072637931512, ...) at accel/tcg/cputlb.c:1522
+#2  store_helper (big_endian=false, size=8, ..., val=2147486210, addr=18446744072637939704, ...) at accel/tcg/cputlb.c:1522
 #3  helper_le_stq_mmu (...) at accel/tcg/cputlb.c:1672
 #4  code_gen_buffer ()
 ```
@@ -711,31 +717,31 @@ $2 = 0x7e0
 ```gdb
 (gdb) set $i = (address >> 12) & (((RISCVCPU*)cs)->neg.tlb.f[1].mask >> 5)
 (gdb) p $i
-$3 = 5
+$3 = 7
 ```
 
 **目的**：按 QEMU 的规则（`include/exec/cpu_ldst.h:163 tlb_index`）算出这一页放在表中的哪个位置。
 
-**解释**：`address >> 12` 是虚拟页号 `0xffffffffc0205`，与 63 做与运算，得到低 6 位 `5`。所以它在第 5 项。
+**解释**：`address >> 12` 是虚拟页号 `0xffffffffc0207`，与 63 做与运算，得到低 6 位 `7`。所以它在第 7 项。
 
 ```gdb
 (gdb) p/x ((RISCVCPU*)cs)->neg.tlb.f[1].table[$i]
-$4 = {{{addr_read = 0xffffffffc0205000, addr_write = 0xffffffffc0205000,
-        addr_code = 0xffffffffc0205000, addend = 0x7f1cd3e00000}, ...}}
+$4 = {{{addr_read = 0xffffffffc0207000, addr_write = 0xffffffffc0207000,
+        addr_code = 0xffffffffc0207000, addend = 0x7fc9d3e00000}, ...}}
 ```
 
 **解释**（字段含义见 1.3 节）：
 
-* `addr_read`、`addr_write`、`addr_code` 都是 `0xffffffffc0205000`：这一页可读、可写、可执行（权限来自页表项的 R、W、X）。
-* `addend = 0x7f1cd3e00000`：之后再访问这一页时，`0xffffffffc0205ff8 + addend` 就直接得到 QEMU 进程里对应的宿主机指针。**中间不再经过客户机物理地址**，这是 QEMU 的 TLB 和真实 TLB 最大的不同（真实 TLB 存的是物理页号）。
+* `addr_read`、`addr_write`、`addr_code` 都是 `0xffffffffc0207000`：这一页可读、可写、可执行（权限来自页表项的 R、W、X）。
+* `addend = 0x7fc9d3e00000`（它取决于 QEMU 进程把模拟内存分配在哪里，每次运行都不一样）：之后再访问这一页时，`0xffffffffc0207ff8 + addend` 就直接得到 QEMU 进程里对应的宿主机指针。**中间不再经过客户机物理地址**，这是 QEMU 的 TLB 和真实 TLB 最大的不同（真实 TLB 存的是物理页号）。
 
 ### 步骤 6：确认写入成功
 
 终端 2：`delete`，`continue`。终端 3 恢复后：
 
 ```gdb
-(gdb) x/gx 0xffffffffc0205ff8
-0xffffffffc0205ff8:	0x0000000080000a02
+(gdb) x/gx 0xffffffffc0207ff8
+0xffffffffc0207ff8:	0x0000000080000a02
 ```
 
 `ra` 的值已经写进了这个地址。
@@ -771,7 +777,7 @@ if (!tlb_hit(tlb_addr, addr)) {                         // 1271 行：这一项�
 终端 2：
 
 ```gdb
-(gdb) break store_helper if addr == 0xffffffffc0205ff8
+(gdb) break store_helper if addr == 0xffffffffc0207ff8
 (gdb) continue
 ```
 
@@ -780,7 +786,7 @@ if (!tlb_hit(tlb_addr, addr)) {                         // 1271 行：这一项�
 ```
 Breakpoint 2 at 0x5574b1cfb3e6: store_helper. (7 locations)
 ...
-Breakpoint 2.6, store_helper (big_endian=false, size=8, ..., val=2147486210, addr=18446744072637931512, ...) at accel/tcg/cputlb.c:1504
+Breakpoint 2.6, store_helper (big_endian=false, size=8, ..., val=2147486210, addr=18446744072637939704, ...) at accel/tcg/cputlb.c:1504
 ```
 
 **解释**：`(7 locations)` 表示 `store_helper` 是一个内联函数，被编译进了 7 个不同的地方（1 字节、2 字节、4 字节、8 字节……各一份）。gdb 在 7 处都打了断点，这是正常的。命中的是第 6 处（`2.6`）。
@@ -794,7 +800,7 @@ $4 = false
 
 **目的**：`next 7` 连续执行 7 行，走到判断是否命中的那一行，然后**在 gdb 中直接调用 `tlb_hit` 函数**，看它的结果。
 
-**解释**：结果为 `false`，说明主 TLB 中第 5 项存的不是这一页（这一页是第一次被访问）。接下来会进入 `victim_tlb_hit`，再进入 `tlb_fill`，也就是实验三看到的路径。
+**解释**：结果为 `false`，说明主 TLB 中第 7 项存的不是这一页（这一页是第一次被访问）。接下来会进入 `victim_tlb_hit`，再进入 `tlb_fill`，也就是实验三看到的路径。
 
 > gdb 能直接调用 `tlb_hit`、`env_tlb` 这些内联函数，是因为 `--enable-debug` 关闭了编译优化（`-O0`），这些函数被保留了下来。
 
@@ -855,36 +861,36 @@ $4 = 0xffffffffc2200000
 终端 2（重新启动一轮）：
 
 ```gdb
-(gdb) break store_helper if addr == 0xffffffffc0205ff8
+(gdb) break store_helper if addr == 0xffffffffc0207ff8
 (gdb) continue                                         # 第一次访问栈页，停下
 (gdb) delete
-(gdb) break store_helper if (addr >> 12) == 0xffffffffc0205
+(gdb) break store_helper if (addr >> 12) == 0xffffffffc0207
 (gdb) continue                                         # 只要再有对栈页的写进入慢速路径，就停下
 ```
 
 **目的**：第一个断点停在第一次访问栈页时；然后换成“任何写这一页的操作进入了慢速路径就停”。如果以后的访问都命中快速路径，这个断点就永远不会停。
 
 ```
-Breakpoint 3.6, store_helper (..., addr=18446744072637931432, ...) at accel/tcg/cputlb.c:1504
+Breakpoint 3.6, store_helper (..., addr=18446744072637939624, ...) at accel/tcg/cputlb.c:1504
 (gdb) p/x addr
-$3 = 0xffffffffc0205fa8
+$3 = 0xffffffffc0207fa8
 ```
 
 结果它还是停了，写的是同一个栈页上的另一个地址。查一下原因：
 
 ```gdb
-(gdb) p/x env_tlb(env)->f[1].table[5]
-$4 = {{{addr_read = 0xffffffffc0345000, addr_write = 0xffffffffc0345000, addr_code = 0xffffffffc0345000, ...}}}
+(gdb) p/x env_tlb(env)->f[1].table[7]
+$4 = {{{addr_read = 0xffffffffc0347000, addr_write = 0xffffffffc0347000, addr_code = 0xffffffffc0347000, ...}}}
 (gdb) p/x env_tlb(env)->d[1].vtable
-（8 项依次为 0xffffffffc0347000、0xffffffffc0343000、0xffffffffc0340000、0xffffffffc0304000、
-  0xffffffffc0305000、0xffffffffc0306000、0xffffffffc0307000、0xffffffffc0341000）
+（8 项依次为 0xffffffffc0342000、0xffffffffc0349000、0xffffffffc0345000、0xffffffffc0340000、
+  0xffffffffc0306000、0xffffffffc0307000、0xffffffffc0308000、0xffffffffc0309000）
 ```
 
 **解释**：
 
-* 第 5 项已经变成了 `0xffffffffc0345000`（页号低 6 位也是 5），栈页被它**挤掉**了。
+* 第 7 项已经变成了 `0xffffffffc0347000`（页号低 6 位也是 7），栈页被它**挤掉**了。
 * victim TLB 的 8 项也全被 `0xffffffffc03xx000` 这些页占满了，栈页已经不在里面。
-* 这些页是 `pages` 数组（`struct Page` 描述符数组，从 `0xffffffffc0208000` 开始，占 300 多页）所在的区域：在两次访问栈页之间，`page_init` 依次初始化了每个物理页的描述符，把 TLB 冲刷了一遍。
+* 这些页是 `pages` 数组（`struct Page` 描述符数组，从 `end` 向上取整后的 `0xffffffffc020a000` 开始，占 300 多页）所在的区域：在两次访问栈页之间，`page_init` 依次初始化了每个物理页的描述符，把 TLB 冲刷了一遍。
 
 所以栈页只能重新走 `tlb_fill` 查页表。这就是“直接映射 + 小容量 victim”结构下典型的**冲突缺失**。
 
@@ -915,7 +921,7 @@ $4 = {{{addr_read = 0xffffffffc0345000, addr_write = 0xffffffffc0345000, addr_co
 再加两个同样“打印就继续”的断点：
 
 ```gdb
-(gdb) break get_physical_address if addr == 0x80207000
+(gdb) break get_physical_address if addr == 0x80209000
 (gdb) commands
 > silent
 > printf "  -> get_physical_address addr=%#lx satp=%#lx\n", addr, env->satp
@@ -930,7 +936,7 @@ $4 = {{{addr_read = 0xffffffffc0345000, addr_write = 0xffffffffc0345000, addr_co
 (gdb) continue
 ```
 
-**目的**：第二个断点专门看未开启分页时的一次访存是否也进了翻译函数（`0x80207000` 是 `entry.S` 开头 `sd a0,0(t0)` 写 `boot_hartid` 的物理地址）；第三个断点标出 `sfence.vma` 执行的时刻（这条指令在 QEMU 中由 `helper_tlb_flush` 实现）。
+**目的**：第二个断点专门看未开启分页时的一次访存是否也进了翻译函数（`0x80209000` 是 `entry.S` 开头 `sd a0,0(t0)` 写 `boot_hartid` 的物理地址）；第三个断点标出 `sfence.vma` 执行的时刻（这条指令在 QEMU 中由 `helper_tlb_flush` 实现）。
 
 终端 3：`make gdb`，`continue`。
 
@@ -940,13 +946,13 @@ $4 = {{{addr_read = 0xffffffffc0345000, addr_write = 0xffffffffc0345000, addr_co
 
 ```
 tlb_fill addr=0x80200000 type=2 satp=0
-tlb_fill addr=0x80207000 type=1 satp=0
-  -> get_physical_address addr=0x80207000 satp=0
+tlb_fill addr=0x80209000 type=1 satp=0
+  -> get_physical_address addr=0x80209000 satp=0
 sfence.vma: helper_tlb_flush pc=0x80200038
-tlb_fill addr=0xffffffffc02000d6 type=2 satp=0x8000000000080206
-tlb_fill addr=0xffffffffc0205ff8 type=1 satp=0x8000000000080206
-tlb_fill addr=0xffffffffc02024d6 type=2 satp=0x8000000000080206
-tlb_fill addr=0xffffffffc0207018 type=1 satp=0x8000000000080206
+tlb_fill addr=0xffffffffc02000d6 type=2 satp=0x8000000000080208
+tlb_fill addr=0xffffffffc0207ff8 type=1 satp=0x8000000000080208
+tlb_fill addr=0xffffffffc0203940 type=2 satp=0x8000000000080208
+tlb_fill addr=0xffffffffc0209018 type=1 satp=0x8000000000080208
 ...
 ```
 
@@ -955,13 +961,13 @@ tlb_fill addr=0xffffffffc0207018 type=1 satp=0x8000000000080206
 | 输出 | 对应 ucore 的哪一步 |
 | :--- | :--- |
 | `addr=0x80200000 type=2 satp=0` | OpenSBI 跳到 `kern_entry`，第一次取指。satp=0，即未开启分页（Bare 模式），地址是物理地址 |
-| `addr=0x80207000 type=1 satp=0` | `entry.S` 中的 `sd a0,0(t0)`，把 hartid 写进 `boot_hartid` |
-| `-> get_physical_address addr=0x80207000` | **未开启分页时，同样调用了翻译函数**，只是它在 `switch (vm)` 的 `case VM_1_10_MBARE` 分支直接返回“物理地址 = 虚拟地址” |
+| `addr=0x80209000 type=1 satp=0` | `entry.S` 中的 `sd a0,0(t0)`，把 hartid 写进 `boot_hartid` |
+| `-> get_physical_address addr=0x80209000` | **未开启分页时，同样调用了翻译函数**，只是它在 `switch (vm)` 的 `case VM_1_10_MBARE` 分支直接返回“物理地址 = 虚拟地址” |
 | `sfence.vma ... pc=0x80200038` | `entry.S` 写完 satp 后执行 `sfence.vma`，清空 TLB |
 | `addr=0xffffffffc02000d6 type=2 satp=0x80...` | `jr t0` 跳到 `kern_init`，**第一次按 Sv39 翻译**（实验一看的就是这一次） |
-| `addr=0xffffffffc0205ff8 type=1` | `kern_init` 中的 `sd ra,8(sp)`（实验三） |
-| `addr=0xffffffffc02024d6 type=2` | 调用 `memset`，取指到了另一页代码 |
-| `addr=0xffffffffc0207018 type=1` | `memset` 开始清零 `.bss` |
+| `addr=0xffffffffc0207ff8 type=1` | `kern_init` 中的 `sd ra,8(sp)`（实验三） |
+| `addr=0xffffffffc0203940 type=2` | 调用 `memset`，取指到了另一页代码（`memset` 的入口） |
+| `addr=0xffffffffc0209018 type=1` | `memset` 开始清零 `.bss` |
 
 ### 结论：QEMU 的 TLB 与真实 TLB 在逻辑上的区别
 
@@ -980,7 +986,7 @@ tlb_fill addr=0xffffffffc0207018 type=1 satp=0x8000000000080206
    * 现象：实验五的输出中，`sfence.vma` 之前没有任何一行访问 `0x80200038` 附近的地址。
    * 背景：`entry.S` 中 `csrw satp` 是一条 CSR 写指令，QEMU 遇到它会结束当前 TB，所以下一个 TB 从 `0x80200038`（物理地址）开始。这时 satp 已经是 Sv39 了，而 `boot_page_table_sv39` 只映射了 `0xffffffffc0000000` 开始的 1 GiB，`0x80200038` 没有映射，按理说取指应该缺页。
    * 原因：`target/riscv/csr.c:729 write_satp` 只在 **ASID 改变**时才清空 TLB。ASID 没变，开启分页之前留下的那一项（`0x80200000 → 0x80200000`）还在，取指直接命中了。
-   * 验证：`break get_page_addr_code if addr == 0x80200038`，命中后 `next` 三次，再执行 `p tlb_hit(entry->addr_code, addr)` 得到 `true`，`p/x entry->addr_code` 为 `0x80200000`，而此时 `p/x env->satp` 已经是 `0x8000000000080206`。
+   * 验证：`break get_page_addr_code if addr == 0x80200038`，命中后 `next` 三次，再执行 `p tlb_hit(entry->addr_code, addr)` 得到 `true`，`p/x entry->addr_code` 为 `0x80200000`，而此时 `p/x env->satp` 已经是 `0x8000000000080208`。
    * 接着 `sfence.vma` 清空了 TLB。但它不结束当前 TB，后面的 `lui sp`、`lui t0`、`addi`、`jr t0` 已经翻译好了，照样执行，直到 `jr t0` 跳到高地址。
    * 按 RISC-V 特权规范，写 satp 之后、执行 `sfence.vma` 之前，硬件可以继续使用旧的翻译，但不保证一定如此，所以这段代码在真实硬件上能否运行取决于具体实现；在 QEMU 中，它是靠“旧 TLB 项 + TB 已翻译好”这一巧合跑通的。
 2. **gdbstub 也会调用翻译函数。** 在终端 3 执行 `x/i $pc`、`b *地址` 时，QEMU 要把 ucore 的虚拟地址翻译成物理地址才能读内存。它走的是另一条路：`target_memory_rw_debug`（gdbstub.c）→ `cpu_memory_rw_debug` → `riscv_cpu_get_phys_page_debug` → `get_physical_address`。所以在 `get_physical_address` 上打不带条件的断点时，有一部分停下其实是 gdb 自己在读内存，看 `bt` 就能区分。这条路径不经过 TLB，也不写 TLB。
@@ -1001,6 +1007,8 @@ tlb_fill addr=0xffffffffc0207018 type=1 satp=0x8000000000080206
 | 4. QEMU 的 TLB 与真实 TLB 的区别 | lyp | 实验五 | 打印输出（Bare 与 Sv39 对比） |
 | 5. 有趣的细节 | 各自 | 第六部分 | 优先写自己发现的 |
 | 6. 大模型帮助解决的问题 | 各自 | — | 如实记录 |
+
+以上各项均已完成，写在 report.md 的「分支任务：GDB 调试 QEMU 的页表查询过程」一节：实验一、二对应图 6～8（张远），实验四、五对应图 9～13（李云鹏），第六部分的细节 1 写在「调试中的有趣细节（张远）」第 1 条。
 
 # 第八部分 常见问题
 
