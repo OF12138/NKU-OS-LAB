@@ -18,7 +18,7 @@
 | T9 | 集成：report.md、prompt.md、最终 make grade | openfar | 10-25 | 进行中 | report/report.md, report/prompt.md |
 
 ## 集成状态
-- make qemu ⬜   make grade ⬜   report.md 已合并 ✅（10-22，缺 T5 TLB、T6 知识点，lyp 完成后 `merge-report.py --fill` 填入）   prompt.md 已合并 ✅
+- make qemu ✅   make grade ✅（10-25 合并后 20/20）   report.md 已合并 ✅（10-25 全部章节就位）   prompt.md 已合并 ✅（12 份）
 
 ## 全组须知
 - T4 lyp 测试已简化为单次启动自测：各大小缓存、跨页扩展、释放复用和大对象回退通过，默认评分 20/20；报告/提示词二同步重写，日志仅保留 `temp/T4-{make,qemu,grade}.log`。T9 请采用本地新版。

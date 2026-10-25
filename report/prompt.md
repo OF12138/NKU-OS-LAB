@@ -150,7 +150,6 @@ static void page_init(void);   // code/kern/mm/pmm.c，由 pmm_init() 调用
 - 空闲区起点向上、终点向下对齐到页，只交出完整的页。
 - 运行 `make grade` 时，`[Test 1] Page Init` 的检查项全部通过：`va_pa_offset`、`npage`、`pages` 对齐且位于 `end` 之后、空闲页数合理、内核末页和描述符数组所在页为保留状态、`pa2page(page2pa(p)) == p`。
 
-
 ---
 
 <!-- prompt:T7-firstfit-challenge.prompt.md -->
@@ -276,7 +275,6 @@ Manual Probing Algorithm Specification:
     4. 一旦触碰无应答总线触发 Load/Store Access Fault，Trap 处理程序优雅捕获并判定探测终止，不发生内核崩溃
 ```
 
-
 ---
 
 <!-- prompt:T2-best-fit.prompt.md -->
@@ -396,7 +394,6 @@ extern const struct pmm_manager best_fit_pmm_manager;
 - **Pre-Condition**：`page_init()` 已注册可用内存。
 - **Post-Condition**：`.check` 指向原有 `best_fit_check`，六个接口全部注册；框架自检后空闲块及页数恢复，`make grade` 两项均通过。
 
-
 ---
 
 <!-- prompt:T3-buddy.prompt.md -->
@@ -513,7 +510,6 @@ extern const struct pmm_manager buddy_pmm_manager;
 - **Pre-Condition**：启动内存已注册，当前管理器为 Buddy，足以完成少量冒烟分配。
 - **Post-Condition**：检查各阶块大小、对齐、链表、页状态、计数和充分合并；验证 1/3/9 页请求、超大请求失败及连续可写；释放后总页数和各阶块数恢复。
 - **Requirements**：注册六个接口。验证 Buddy 启动与自检；不 clean 切回默认后运行 Best-Fit，`make grade` 保持基线 20/20。独立测试仍由 openfar 完成。
-
 
 ---
 
@@ -655,7 +651,6 @@ static void check_unaligned_init(void);
 **Case 1**：测试区重新标为保留页，`init_memmap(R+3, 13)` 后空闲 13 页。`alloc(16)` 失败；`alloc(8)`、`alloc(4)`、`alloc(1)` 分别返回 R+8、R+4、R+3，之后 `alloc(1)` 失败。这说明区间被拆成了按页号对齐的 1+4+8。
 
 **Case 2**：释放后分段注册剩余部分：`init_memmap(R, 3)` 后 `alloc(16)` 返回 R；再 `init_memmap(R+16, 48)`，`alloc(64)` 返回 R。这说明分段注册的块能跨段逐级合并。
-
 
 ---
 
@@ -834,7 +829,6 @@ void slub_print_stats(void);
 - 每个 slab 固定占一页。单核环境下每个缓存只有一个活动 slab，不实现 per-node 链表和 min_partial。
 - 接入后 `make qemu` 正常启动，`make grade` 的结果不受影响。
 
-
 ---
 
 <!-- prompt:T4-slub-test.prompt.md -->
@@ -916,7 +910,6 @@ static void check_large(void);
 
 **Post-Condition**：分别申请 1025、4096、8192 字节，覆盖小对象上限之外、恰好一页的请求和多页请求；检查返回地址、可用容量，写满请求范围并读回，释放后空闲页数恢复。页首还有管理头，不把 4096 字节请求误认为只需一页。
 
-
 ---
 
 <!-- prompt:T5-walk.prompt.md -->
@@ -987,115 +980,6 @@ boot_page_table_sv39:
 - **Case 5（有趣细节）**：用“打印后继续”的断点记录启动阶段所有 S 态的 `tlb_fill`，检查 `csrw satp` 之后、`sfence.vma` 之前的取指为什么没有缺页，用源码（`write_satp`）和条件断点（`tlb_hit`）验证；另外核对 gdbstub 读内存的翻译路径，以及 `env->pc` 是否准确。
 
 **Requirements**：关键分支表要给出源码行号和分支语句原文。截图里的数值要与正文一致；地址变化（例如代码修改导致页表地址改变）时重新实测，不要沿用旧数据。
-
-
----
-
-<!-- prompt:T6-overall.prompt.md -->
-## 实验整体逻辑分析
-
-[PROMPT]
-
-**任务**：为 lab2 实验报告撰写“实验整体逻辑分析”一章，写入 `report/sections/T6-overall.md`，包含“逻辑主线”“功能的逐步实现”“各功能的核心函数”三节。
-
-**操作要求**：先通读本 lab 已经完成的代码和各任务的 section（功能模块一、功能模块二的三个任务、SLUB、分支任务），以真实代码为准，不复述指导书原文。参考 lab1 报告中“整体分析”一章的写法：先用一句话概括主线，再用表格列出实现顺序，逐条说明“为什么排在这里”。
-
-**输出要求**：Markdown，语言平实；章节标题由集成脚本编号，文件内从二级标题开始。每个结论都要能在代码中找到依据；涉及其他章节的细节只做概括，并写明在报告中的位置。
-
-[RELY]
-
-- 指导书给出的实现链：`pmm_init() -> init_pmm_manager() -> page_init() -> init_memmap() -> alloc_pages()/free_pages()`。
-- `code/kern/init/entry.S`：用一个 1 GiB 大页建立 `boot_page_table_sv39`，写入 `satp` 后跳到高地址的 `kern_init`。
-- `code/kern/mm/pmm.h` 中的 `struct pmm_manager`（`init`、`init_memmap`、`alloc_pages`、`free_pages`、`nr_free_pages`、`check`）和 `memlayout.h` 中的 `struct Page`。
-- 各分配器的实现：`default_pmm.c`、`best_fit_pmm.c`、`buddy_pmm.c`、`slub.c`，以及 `page_init`。
-- 分支任务中观察到的 `get_physical_address` 页表遍历过程（`temp/gdb-guide.md`）。
-
-[GUARANTEE]
-
-需要回答的问题：
-
-1. 本章围绕什么主题展开，要解决什么问题？用一句话概括主线。
-2. 各功能按什么顺序实现，为什么是这个顺序？每一步依赖前面哪一步的结果？
-3. 每个功能的核心函数是什么，它的关键逻辑是什么？
-4. 几个页分配器之间有什么共同点，为什么可以互相替换？
-
-需要交付的产出：分层示意图、实现顺序表、`pmm_manager` 接口表、`struct Page` 字段在各分配器中的含义对照表。
-
-[SPECIFICATION]
-
-**Pre-Condition**：T1～T5 的代码已经完成，各 section 已有初稿。
-
-**Post-Condition**：
-
-- 逻辑主线按层次组织（地址 → 内存范围 → 页描述符 → 连续页 → 对象），并点明区分虚拟地址、物理地址、物理页号和描述符地址这条副线。
-- 实现顺序覆盖框架已完成的启动页表、`page_init`、First-Fit、Best-Fit、Buddy、SLUB 和分支任务，每一步都说明排序的理由。
-- 核心函数的描述与代码一致，例如 Best-Fit 在大小相同时选地址最低的块，First-Fit 分配后不清零 `property`，Buddy 已分配块的首页仍记录块长。
-
-**Requirements**：不重复各功能模块章节中的实现细节和迭代过程，只做汇总。
-
-
----
-
-<!-- prompt:T8-common-sections.prompt.md -->
-## 公共章节：实验目的、实验环境、测试与验证、AI 协作经验
-
-[PROMPT]
-
-**任务**：为 lab2 实验报告撰写四个公共章节：实验目的、实验环境、测试与验证、AI 协作开发的经验。
-
-**操作要求**：直接写入 `report/sections/T8-purpose.md`、`T8-env.md`、`T8-test.md`、`T8-summary.md`。章节标题由集成脚本添加，文件中不写一级标题。所有事实（版本号、输出内容、测试结果、协作方式）必须来自真实记录：运行结果从终端复制，截图在统一环境中实拍，成员信息向本人确认；不得编写未发生的过程或未出现的输出。
-
-**输出要求**：Markdown，语言平实，与指导书和 `report-template.md` 的对应部分一致。图片放 `report/images/`，文件名以 `T8-` 开头，图题写成 `<p align="center">图 T8-x　…</p>`。
-
-[RELY]
-
-- 指导书“实验目的”：理解页表的建立和使用方法；理解物理内存的管理方法；理解页面分配算法。
-- `temp/env.md`：全组统一 QEMU 4.1.1（OpenSBI v0.4），原因是框架的 `-device loader` 加载方式依赖 fw_jump 固件。
-- 各成员的宿主系统、工具链、AI 工具和模型（向本人确认）。
-- `make grade` 的实现：`tools/inject.py` 在 `pmm_init()` 末尾插入 `test_page_init()` 和 `test_best_fit()`，`tools/grade.sh` 检查 `[Test 1] Page Init: PASS` 和 `[Test 2] Best-Fit: PASS`。
-
-```c
-// code/tools/test_lab2.c（节选）
-void
-test_best_fit(void)
-{
-    if (pmm_manager != &best_fit_pmm_manager) {
-        cprintf("[Test 2] Best-Fit: FAIL (pmm_manager=%s)\n", pmm_manager->name);
-        return;
-    }
-    cprintf("[Test 2] Best-Fit: PASS\n");
-}
-```
-
-- 各模块的验证记录：`.handoff/tasks/` 中 T1、T2、T4 的「验证结果」与「迭代素材」。
-
-[GUARANTEE]
-
-1. 实验目的：与指导书的三条目的对应，另加一条“用四段式提示词借助 AI 完成内核开发”。
-2. 实验环境：说明统一 QEMU 版本的原因；软件环境表（成员、宿主系统、QEMU、工具链）；AI 工具表（成员、工具、模型）。
-3. 测试与验证：`make qemu` 与 `make grade` 的真实截图；逐行解释 `make qemu` 输出对应的启动阶段；说明 `make grade` 两项检查各自实际检查的内容；列出各模块的补充测试及结果。
-4. AI 协作经验：基于本 lab 真实发生的事例总结经验。
-
-[SPECIFICATION]
-
-## T8-test.md
-
-**Pre-Condition**:
-- T1、T2 已完成，统一环境下 `make grade` 可以运行。
-
-**Post-Condition**:
-- 两张截图对应已提交的代码，图中输出与正文引用的字符串完全一致。
-
-  **Case 1**：`check best fit` 只检查 `pmm_manager` 指针，正文不得把它描述成检验分配、分裂或合并。
-  **Case 2**：尚未完成的模块测试（Buddy、SLUB 的提示词二）写“待补”，不得预先编写结果。
-
-## T8-summary.md
-
-**Post-Condition**:
-- 每一条经验都对应本 lab 中可以在仓库记录里找到的事例（环境统一、参考代码中的错误、官方测试覆盖不足、说明文字与真实输出不符、`[RELY]` 校验、注释前后的编译比对）。
-
-**Requirements**:
-- 知识点与 OS 原理的对照属于 T6，本任务不写。
 
 ---
 
@@ -1179,6 +1063,49 @@ static inline bool tlb_hit(target_ulong tlb_addr, target_ulong addr)
 
 **Requirements**：容量必须从运行时 mask 计算，不能把 64 项当作固定常量；`addend` 直接访存结论限定于普通 RAM；不把 TCG 代码生成函数当成每次访存都会调用的函数，不把慢路径与 TLB 缺失画等号；不把 QEMU 4.1.1 的刷新策略推广为所有真实 CPU 的实现。
 
+---
+
+<!-- prompt:T6-overall.prompt.md -->
+## 实验整体逻辑分析
+
+[PROMPT]
+
+**任务**：为 lab2 实验报告撰写“实验整体逻辑分析”一章，写入 `report/sections/T6-overall.md`，包含“逻辑主线”“功能的逐步实现”“各功能的核心函数”三节。
+
+**操作要求**：先通读本 lab 已经完成的代码和各任务的 section（功能模块一、功能模块二的三个任务、SLUB、分支任务），以真实代码为准，不复述指导书原文。参考 lab1 报告中“整体分析”一章的写法：先用一句话概括主线，再用表格列出实现顺序，逐条说明“为什么排在这里”。
+
+**输出要求**：Markdown，语言平实；章节标题由集成脚本编号，文件内从二级标题开始。每个结论都要能在代码中找到依据；涉及其他章节的细节只做概括，并写明在报告中的位置。
+
+[RELY]
+
+- 指导书给出的实现链：`pmm_init() -> init_pmm_manager() -> page_init() -> init_memmap() -> alloc_pages()/free_pages()`。
+- `code/kern/init/entry.S`：用一个 1 GiB 大页建立 `boot_page_table_sv39`，写入 `satp` 后跳到高地址的 `kern_init`。
+- `code/kern/mm/pmm.h` 中的 `struct pmm_manager`（`init`、`init_memmap`、`alloc_pages`、`free_pages`、`nr_free_pages`、`check`）和 `memlayout.h` 中的 `struct Page`。
+- 各分配器的实现：`default_pmm.c`、`best_fit_pmm.c`、`buddy_pmm.c`、`slub.c`，以及 `page_init`。
+- 分支任务中观察到的 `get_physical_address` 页表遍历过程（`temp/gdb-guide.md`）。
+
+[GUARANTEE]
+
+需要回答的问题：
+
+1. 本章围绕什么主题展开，要解决什么问题？用一句话概括主线。
+2. 各功能按什么顺序实现，为什么是这个顺序？每一步依赖前面哪一步的结果？
+3. 每个功能的核心函数是什么，它的关键逻辑是什么？
+4. 几个页分配器之间有什么共同点，为什么可以互相替换？
+
+需要交付的产出：分层示意图、实现顺序表、`pmm_manager` 接口表、`struct Page` 字段在各分配器中的含义对照表。
+
+[SPECIFICATION]
+
+**Pre-Condition**：T1～T5 的代码已经完成，各 section 已有初稿。
+
+**Post-Condition**：
+
+- 逻辑主线按层次组织（地址 → 内存范围 → 页描述符 → 连续页 → 对象），并点明区分虚拟地址、物理地址、物理页号和描述符地址这条副线。
+- 实现顺序覆盖框架已完成的启动页表、`page_init`、First-Fit、Best-Fit、Buddy、SLUB 和分支任务，每一步都说明排序的理由。
+- 核心函数的描述与代码一致，例如 Best-Fit 在大小相同时选地址最低的块，First-Fit 分配后不清零 `property`，Buddy 已分配块的首页仍记录块长。
+
+**Requirements**：不重复各功能模块章节中的实现细节和迭代过程，只做汇总。
 
 ---
 
@@ -1201,3 +1128,66 @@ Case 1：区分页分配与地址映射、4 KiB 管理粒度与 1 GiB 启动映�
 Case 2：说明 Buddy 的幂次取整和伙伴约束，不笼统声称常数复杂度或消除了碎片。
 Case 3：区分简化 SLUB、QEMU 软件 TLB 与真实系统机制，不把 Bare 下的软件缓存等同于硬件分页。
 Requirements：结论可由当前实现或已有验证支持；不虚构测试或迭代；合并后无待补占位，图号和图片路径有效。
+
+---
+
+<!-- prompt:T8-common-sections.prompt.md -->
+## 公共章节：实验目的、实验环境、测试与验证、AI 协作经验
+
+[PROMPT]
+
+**任务**：为 lab2 实验报告撰写四个公共章节：实验目的、实验环境、测试与验证、AI 协作开发的经验。
+
+**操作要求**：直接写入 `report/sections/T8-purpose.md`、`T8-env.md`、`T8-test.md`、`T8-summary.md`。章节标题由集成脚本添加，文件中不写一级标题。所有事实（版本号、输出内容、测试结果、协作方式）必须来自真实记录：运行结果从终端复制，截图在统一环境中实拍，成员信息向本人确认；不得编写未发生的过程或未出现的输出。
+
+**输出要求**：Markdown，语言平实，与指导书和 `report-template.md` 的对应部分一致。图片放 `report/images/`，文件名以 `T8-` 开头，图题写成 `<p align="center">图 T8-x　…</p>`。
+
+[RELY]
+
+- 指导书“实验目的”：理解页表的建立和使用方法；理解物理内存的管理方法；理解页面分配算法。
+- `temp/env.md`：全组统一 QEMU 4.1.1（OpenSBI v0.4），原因是框架的 `-device loader` 加载方式依赖 fw_jump 固件。
+- 各成员的宿主系统、工具链、AI 工具和模型（向本人确认）。
+- `make grade` 的实现：`tools/inject.py` 在 `pmm_init()` 末尾插入 `test_page_init()` 和 `test_best_fit()`，`tools/grade.sh` 检查 `[Test 1] Page Init: PASS` 和 `[Test 2] Best-Fit: PASS`。
+
+```c
+// code/tools/test_lab2.c（节选）
+void
+test_best_fit(void)
+{
+    if (pmm_manager != &best_fit_pmm_manager) {
+        cprintf("[Test 2] Best-Fit: FAIL (pmm_manager=%s)\n", pmm_manager->name);
+        return;
+    }
+    cprintf("[Test 2] Best-Fit: PASS\n");
+}
+```
+
+- 各模块的验证记录：`.handoff/tasks/` 中 T1、T2、T4 的「验证结果」与「迭代素材」。
+
+[GUARANTEE]
+
+1. 实验目的：与指导书的三条目的对应，另加一条“用四段式提示词借助 AI 完成内核开发”。
+2. 实验环境：说明统一 QEMU 版本的原因；软件环境表（成员、宿主系统、QEMU、工具链）；AI 工具表（成员、工具、模型）。
+3. 测试与验证：`make qemu` 与 `make grade` 的真实截图；逐行解释 `make qemu` 输出对应的启动阶段；说明 `make grade` 两项检查各自实际检查的内容；列出各模块的补充测试及结果。
+4. AI 协作经验：基于本 lab 真实发生的事例总结经验。
+
+[SPECIFICATION]
+
+## T8-test.md
+
+**Pre-Condition**:
+- T1、T2 已完成，统一环境下 `make grade` 可以运行。
+
+**Post-Condition**:
+- 两张截图对应已提交的代码，图中输出与正文引用的字符串完全一致。
+
+  **Case 1**：`check best fit` 只检查 `pmm_manager` 指针，正文不得把它描述成检验分配、分裂或合并。
+  **Case 2**：尚未完成的模块测试（Buddy、SLUB 的提示词二）写“待补”，不得预先编写结果。
+
+## T8-summary.md
+
+**Post-Condition**:
+- 每一条经验都对应本 lab 中可以在仓库记录里找到的事例（环境统一、参考代码中的错误、官方测试覆盖不足、说明文字与真实输出不符、`[RELY]` 校验、注释前后的编译比对）。
+
+**Requirements**:
+- 知识点与 OS 原理的对照属于 T6，本任务不写。
