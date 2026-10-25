@@ -1,5 +1,5 @@
 # T9 集成
-- 负责人：openfar    DDL：10-25    状态：待开始    依赖：T1–T8
+- 负责人：openfar    DDL：10-25    状态：完成    依赖：T1–T8
 - 主要文件：report/report.md, report/prompt.md
 
 ## 要求
@@ -7,11 +7,16 @@
 - 统一环境下最终 `make grade`；检查所有 YOUR CODE 已替换为学号、lab2 注释保留。
 
 ## 当前进度 / 下一步
-- 10-25 合并，10-26 截止前留一天给全组审阅。
+- 10-25 已完成：各 section 合并进 report.md，prompt.md 按任务顺序收录 12 份提示词；lab2 结束。
+- report1.pdf、report2.pdf 只作本地预览，不上传（.gitignore 中的 `report/*.pdf`）。
 
 ## 关键决策与结论
+- 报告中的字符画全部改画成图片（`.claude/tools/lab2-diagrams.py`），图号全文统一编号。
+- `temp/gdb-guide.md` 已按最终代码 79d8dc7 重测并更新地址。
 
 ## 验证结果
+- 10-25 最终代码：`make` 通过，`make qemu` 正常，`make grade` 20/20（QEMU 4.1.1）。
+- 所有 `YOUR CODE` 标记已替换为学号。
 
 ## 迭代素材
 
