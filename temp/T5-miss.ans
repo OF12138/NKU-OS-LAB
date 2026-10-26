@@ -1,0 +1,114 @@
+sudo -n gdb -q -nx -p 13696
+lenovo@LYP-WIN:/mnt/f/Lab_2026/NKU-OS-LAB$ sudo -n gdb -q -nx -p 13696
+Attaching to process 13696
+[New LWP 13714]
+[New LWP 13715]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "[32m/lib/x86_64-linux-gnu/libthread_db.so.1[39m".
+[34m0x0000798f6dd18e1e[39m in [33m__ppoll[39m ([36mfds[39m=0x5af6d82740e0, [36mnfds[39m=6, [36mtimeout[39m=<optimized out>, [36msigmask[39m=0x0) at [32m../sysdeps/u
+nix/sysv/linux/ppoll.c[39m:42
+42      ../sysdeps/unix/sysv/linux/ppoll.c: No such file or directory.
+(gdb) set pagination off
+(gdb) set confirm off
+(gdb) set print frame-arguments none
+(gdb) set print pretty off
+(gdb) set style enabled on
+(gdb) handle SIGPIPE nostop noprint
+Signal        Stop      Print   Pass to program Description
+SIGPIPE       No        No      Yes             Broken pipe
+(gdb) break store_helper if addr == 0xffffffffc0207ff8
+Breakpoint 1 at [34m0x5af6ae72e6bd[39m: store_helper. (7 locations)
+(gdb) continue
+Continuing.
+[Switching to Thread 0x798f6d3fe640 (LWP 13715)]
+
+Thread 3 "qemu-system-ris" hit Breakpoint 1, [33mstore_helper[39m ([36mbig_endian[39m=..., [36msize[39m=..., [36mretaddr[39m=..., [36moi[39m=..., [36mval[39m=..
+., [36maddr[39m=..., [36menv[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:1504
+1504        uintptr_t mmu_idx [31m=[39m [1mget_mmuidx[0m[31m[49m([39moi[31m);[39m
+(gdb) until accel/tcg/cputlb.c:1519
+[33mstore_helper[39m ([36mbig_endian[39m=..., [36msize[39m=..., [36mretaddr[39m=..., [36moi[39m=..., [36mval[39m=..., [36maddr[39m=..., [36menv[39m=...) at [32m/home/lenovo/Environ
+ment/qemu-4.1.1/accel/tcg/cputlb.c[39m:1519
+1519        [1m[34mif[0m[39m[49m [31m(![1m[39mtlb_hit[0m[31m[49m([39mtlb_addr[31m,[39m addr[31m))[39m [31m{[39m
+(gdb) p/x addr
+$1 = 0xffffffffc0207ff8
+(gdb) p/x val
+$2 = 0x80000a02
+(gdb) p mmu_idx
+$3 = 1
+(gdb) p index
+$4 = 7
+(gdb) p sizeof(CPUTLBEntry)
+$5 = 32
+(gdb) p/x env_tlb(env)->f[1].mask
+$6 = 0x7e0
+(gdb) p/x tlb_addr
+$7 = 0xffffffffffffffff
+(gdb) p tlb_hit(tlb_addr, addr)
+$8 = false
+(gdb) bt 4
+#0  [33mstore_helper[39m ([36mbig_endian[39m=..., [36msize[39m=..., [36mretaddr[39m=..., [36moi[39m=..., [36mval[39m=..., [36maddr[39m=..., [36menv[39m=...) at [32m/home/lenovo/Env
+ironment/qemu-4.1.1/accel/tcg/cputlb.c[39m:1519
+#1  [33mhelper_le_stq_mmu[39m ([36menv[39m=..., [36maddr[39m=..., [36mval[39m=..., [36moi[39m=..., [36mretaddr[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/a
+ccel/tcg/cputlb.c[39m:1672
+#2  [34m0x0000798f66050f65[39m in [33mcode_gen_buffer[39m ()
+#3  [34m0x00005af6ae74f2fb[39m in [33mcpu_tb_exec[39m ([36mcpu[39m=..., [36mitb[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cpu-ex
+ec.c[39m:173
+(More stack frames follow...)
+(gdb) set $env = env
+(gdb) set $addr = addr
+(gdb) set $idx = index
+(gdb) break tlb_set_page_with_attrs if vaddr == 0xffffffffc0207000
+Breakpoint 2 at [34m0x5af6ae72a073[39m: file [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m, line 700.
+(gdb) continue
+Continuing.
+
+Thread 3 "qemu-system-ris" hit Breakpoint 2, [33mtlb_set_page_with_attrs[39m ([36mcpu[39m=..., [36mvaddr[39m=..., [36mpaddr[39m=..., [36mattrs[39m=...,
+[36mprot[39m=..., [36mmmu_idx[39m=..., [36msize[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:700
+700     [31m{[39m
+(gdb) p/x vaddr
+$9 = 0xffffffffc0207000
+(gdb) p/x paddr
+$10 = 0x80207000
+(gdb) p prot
+$11 = 7
+(gdb) p size
+$12 = 4096
+(gdb) finish
+Run till exit from #0  [33mtlb_set_page_with_attrs[39m ([36mcpu[39m=..., [36mvaddr[39m=..., [36mpaddr[39m=..., [36mattrs[39m=..., [36mprot[39m=..., [36mmmu_idx[39m=...,
+ [36msize[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:700
+[34m0x00005af6ae72a5f3[39m in [33mtlb_set_page[39m ([36mcpu[39m=..., [36mvaddr[39m=..., [36mpaddr[39m=..., [36mprot[39m=..., [36mmmu_idx[39m=..., [36msize[39m=...) at [32m/home/len
+ovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:847
+847         [1mtlb_set_page_with_attrs[0m[31m[49m([39mcpu[31m,[39m vaddr[31m,[39m paddr[31m,[39m MEMTXATTRS_UNSPECIFIED[31m,[39m
+(gdb) p/x env_tlb($env)->f[1].table[$idx].addr_write
+$13 = 0xffffffffc0207000
+(gdb) p/x env_tlb($env)->f[1].table[$idx].addend
+$14 = 0x798f97e00000
+(gdb) p tlb_hit(env_tlb($env)->f[1].table[$idx].addr_write, $addr)
+$15 = true
+(gdb) set $host = (unsigned long)($addr + env_tlb($env)->f[1].table[$idx].addend)
+(gdb) p/x $host
+$16 = 0x798f58007ff8
+(gdb) break accel/tcg/cputlb.c:1607 if addr == 0xffffffffc0207ff8
+Breakpoint 3 at [34m0x5af6ae72ebff[39m: accel/tcg/cputlb.c:1607. (7 locations)
+(gdb) continue
+Continuing.
+
+Thread 3 "qemu-system-ris" hit Breakpoint 3, [33mstore_helper[39m ([36mbig_endian[39m=..., [36msize[39m=..., [36mretaddr[39m=..., [36moi[39m=..., [36mval[39m=..
+., [36maddr[39m=..., [36menv[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:1607
+1607        haddr [31m=[39m [31m([32mvoid[39m [31m*)(([39muintptr_t[31m)[39maddr [31m+[39m entry[31m->[39maddend[31m);[39m
+(gdb) next
+1608        [1m[34mswitch[0m[39m[49m [31m([39msize[31m)[39m [31m{[39m
+(gdb) p/x haddr
+$17 = 0x798f58007ff8
+(gdb) finish
+Run till exit from #0  [33mstore_helper[39m ([36mbig_endian[39m=..., [36msize[39m=..., [36mretaddr[39m=..., [36moi[39m=..., [36mval[39m=..., [36maddr[39m=..., [36menv[39m=...)
+at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:1608
+[33mhelper_le_stq_mmu[39m ([36menv[39m=..., [36maddr[39m=..., [36mval[39m=..., [36moi[39m=..., [36mretaddr[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel
+/tcg/cputlb.c[39m:1673
+1673    [31m}[39m
+(gdb) x/gx $host
+[34m0x798f58007ff8[39m: 0x0000000080000a02
+(gdb) python
+>assert int(gdb.parse_and_eval('*(unsigned long *)$host')) == 0x80000a02
+>end
+(gdb)

@@ -1,0 +1,73 @@
+
+OpenSBI v0.4 (Jul  2 2019 11:53:53)
+   ____                    _____ ____ _____
+  / __ \                  / ____|  _ \_   _|
+ | |  | |_ __   ___ _ __ | (___ | |_) || |
+ | |  | | '_ \ / _ \ '_ \ \___ \|  _ < | |
+ | |__| | |_) |  __/ | | |____) | |_) || |_
+  \____/| .__/ \___|_| |_|_____/|____/_____|
+        | |
+        |_|
+
+Platform Name          : QEMU Virt Machine
+Platform HART Features : RV64ACDFIMSU
+Platform Max HARTs     : 8
+Current Hart           : 0
+Firmware Base          : 0x80000000
+Firmware Size          : 112 KB
+Runtime SBI Version    : 0.1
+
+PMP0: 0x0000000080000000-0x000000008001ffff (A)
+PMP1: 0x0000000000000000-0xffffffffffffffff (A,R,W,X)
+DTB Init
+HartID: 0
+DTB Address: 0x82200000
+Physical Memory from DTB:
+  Base: 0x0000000080000000
+  Size: 0x0000000008000000 (128 MB)
+  End:  0x0000000087ffffff
+DTB init completed
+(THU.CST) os is loading ...
+Special kernel symbols:
+  entry  0xffffffffc02000d8 (virtual)
+  etext  0xffffffffc020249a (virtual)
+  edata  0xffffffffc0207018 (virtual)
+  end    0xffffffffc0207930 (virtual)
+Kernel executable memory footprint: 31KB
+memory management: best_fit_pmm_manager
+physical memory map:
+  memory: 0x0000000008000000, [0x0000000080000000, 0x0000000087ffffff].
+check_alloc_page() succeeded!
+satp virtual address: 0xffffffffc0206000
+satp physical address: 0x0000000080206000
+slub: 7 kmalloc caches (16 ~ 1024 bytes), larger requests use whole pages
+[SLUB] basic argument checks PASS
+[SLUB] request=1 cache=16 capacity=253: filled, extra slab allocated
+[SLUB] cache=16: partial transition and empty slab reclaim PASS
+[SLUB] request=17 cache=32 capacity=126: filled, extra slab allocated
+[SLUB] cache=32: partial transition and empty slab reclaim PASS
+[SLUB] request=33 cache=64 capacity=63: filled, extra slab allocated
+[SLUB] cache=64: partial transition and empty slab reclaim PASS
+[SLUB] request=65 cache=128 capacity=31: filled, extra slab allocated
+[SLUB] cache=128: partial transition and empty slab reclaim PASS
+[SLUB] request=129 cache=256 capacity=15: filled, extra slab allocated
+[SLUB] cache=256: partial transition and empty slab reclaim PASS
+[SLUB] request=257 cache=512 capacity=7: filled, extra slab allocated
+[SLUB] cache=512: partial transition and empty slab reclaim PASS
+[SLUB] request=1024 cache=1024 capacity=3: filled, extra slab allocated
+[SLUB] cache=1024: partial transition and empty slab reclaim PASS
+[SLUB] 128 x 64B: free half, reuse, data check and reclaim PASS
+[SLUB] large 1025B: page fallback and reclaim PASS
+[SLUB] large 4096B: page fallback and reclaim PASS
+[SLUB] large 8192B: page fallback and reclaim PASS
+slub caches:
+  kmem_cache     size  112  objs/slab  36  slabs   1  partial   0  inuse     7
+  kmalloc-16     size   16  objs/slab 253  slabs   1  partial   0  inuse     0
+  kmalloc-32     size   32  objs/slab 126  slabs   1  partial   0  inuse     0
+  kmalloc-64     size   64  objs/slab  63  slabs   1  partial   0  inuse     0
+  kmalloc-128    size  128  objs/slab  31  slabs   1  partial   0  inuse     0
+  kmalloc-256    size  256  objs/slab  15  slabs   1  partial   0  inuse     0
+  kmalloc-512    size  512  objs/slab   7  slabs   1  partial   0  inuse     0
+  kmalloc-1024   size 1024  objs/slab   3  slabs   1  partial   0  inuse     0
+[SLUB] all checks passed (retained 7 active slab pages)
+qemu-system-riscv64: terminating on signal 15 from pid 24795 (timeout)

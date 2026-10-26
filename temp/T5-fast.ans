@@ -1,0 +1,83 @@
+sudo -n gdb -q -nx -p 13929
+lenovo@LYP-WIN:/mnt/f/Lab_2026/NKU-OS-LAB$ sudo -n gdb -q -nx -p 13929
+Attaching to process 13929
+[New LWP 13947]
+[New LWP 13948]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "[32m/lib/x86_64-linux-gnu/libthread_db.so.1[39m".
+[34m0x0000748abe918e1e[39m in [33m__ppoll[39m ([36mfds[39m=0x643539dea0e0, [36mnfds[39m=6, [36mtimeout[39m=<optimized out>, [36msigmask[39m=0x0) at [32m../sysdeps/u
+nix/sysv/linux/ppoll.c[39m:42
+42      ../sysdeps/unix/sysv/linux/ppoll.c: No such file or directory.
+(gdb) set pagination off
+(gdb) set confirm off
+(gdb) set print frame-arguments none
+(gdb) set print pretty off
+(gdb) set style enabled on
+(gdb) handle SIGPIPE nostop noprint
+Signal        Stop      Print   Pass to program Description
+SIGPIPE       No        No      Yes             Broken pipe
+(gdb) break store_helper if addr == 0x80209000
+Breakpoint 1 at [34m0x643524e866bd[39m: store_helper. (7 locations)
+(gdb) continue
+Continuing.
+[Switching to Thread 0x748abdf7d640 (LWP 13948)]
+
+Thread 3 "qemu-system-ris" hit Breakpoint 1, [33mstore_helper[39m ([36mbig_endian[39m=..., [36msize[39m=..., [36mretaddr[39m=..., [36moi[39m=..., [36mval[39m=..
+., [36maddr[39m=..., [36menv[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:1504
+1504        uintptr_t mmu_idx [31m=[39m [1mget_mmuidx[0m[31m[49m([39moi[31m);[39m
+(gdb) set $ret = retaddr
+(gdb) set $env = env
+(gdb) p/x $ret
+$1 = 0x748ab6050bc6
+(gdb) python
+>insns = gdb.selected_frame().architecture().disassemble(int(gdb.parse_and_eval('$ret')), count=20)
+>cmp_insn = next(x for x in insns if x['asm'].startswith('cmp '))
+>gdb.set_convenience_variable('cmp_pc', cmp_insn['addr'])
+>end
+(gdb) x/6i $cmp_pc
+   [34m0x748ab6050bed[39m <[33mcode_gen_buffer[39m+330688>:     cmp    0x8(%rdi),%rsi
+   [34m0x748ab6050bf1[39m <[33mcode_gen_buffer[39m+330692>:     mov    %rbx,%rsi
+   [34m0x748ab6050bf4[39m <[33mcode_gen_buffer[39m+330695>:     jne    [34m0x748ab6050c82[39m <[33mcode_gen_buffer[39m+330837>
+   [34m0x748ab6050bfa[39m <[33mcode_gen_buffer[39m+330701>:     add    0x18(%rdi),%rsi
+   [34m0x748ab6050bfe[39m <[33mcode_gen_buffer[39m+330705>:     mov    %r12,(%rsi)
+   [34m0x748ab6050c01[39m <[33mcode_gen_buffer[39m+330708>:     movabs $0x8000000000000000,%rbx
+(gdb) tbreak *$cmp_pc
+Temporary breakpoint 2 at [34m0x748ab6050bed[39m
+(gdb) continue
+Continuing.
+
+Thread 3 "qemu-system-ris" hit Temporary breakpoint 2, [34m0x0000748ab6050bed[39m in [33mcode_gen_buffer[39m ()
+(gdb) p/x $env->satp
+$2 = 0x0
+(gdb) p/x $rbx
+$3 = 0x80209008
+(gdb) p/x $rsi
+$4 = 0x80209000
+(gdb) p/x ((CPUTLBEntry *)$rdi)->addr_write
+$5 = 0x80209000
+(gdb) p/x ((CPUTLBEntry *)$rdi)->addend
+$6 = 0x748a27e00000
+(gdb) si
+[34m0x0000748ab6050bf1[39m in [33mcode_gen_buffer[39m ()
+(gdb) p ($eflags >> 6) & 1
+$7 = 1
+(gdb) si
+[34m0x0000748ab6050bf4[39m in [33mcode_gen_buffer[39m ()
+(gdb) si
+[34m0x0000748ab6050bfa[39m in [33mcode_gen_buffer[39m ()
+(gdb) x/i $pc
+=> [34m0x748ab6050bfa[39m <[33mcode_gen_buffer[39m+330701>:     add    0x18(%rdi),%rsi
+(gdb) si
+[34m0x0000748ab6050bfe[39m in [33mcode_gen_buffer[39m ()
+(gdb) p/x $rsi
+$8 = 0x748aa8009008
+(gdb) p/x $r12
+$9 = 0x82200000
+(gdb) si
+[34m0x0000748ab6050c01[39m in [33mcode_gen_buffer[39m ()
+(gdb) x/gx $rsi
+[34m0x748aa8009008[39m: 0x0000000082200000
+(gdb) python
+>assert int(gdb.parse_and_eval('*(unsigned long *)$rsi')) == int(gdb.parse_and_eval('$r12'))
+>end
+(gdb)

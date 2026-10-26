@@ -1,0 +1,11 @@
+# 变异测试：关闭 buddy_check() 与 slub_check()，向 buddy_pmm.c 注入错误后运行 make PMM=buddy qemu（QEMU 4.1.1）
+M1-merge-by-adjacency => kernel panic at kern/mm/buddy_test.c:23:
+     assertion failed: p == expect
+ 
+M2-no-merge => kernel panic at kern/mm/buddy_test.c:23:     assertion failed: p == expect 
+M3-no-roundup => kernel panic at kern/mm/buddy_test.c:30:     assertion failed: p->property == size && !PageProperty(p) && !PageReserved(p) 
+M4-init-ignore-align => kernel panic at kern/mm/buddy_test.c:206:     assertion failed: R != NULL && (page2ppn(R) & (REGION - 1)) == 0 
+M5-nrfree-by-request => kernel panic at kern/mm/buddy_test.c:32:     assertion failed: NR_FREE() == before - size 
+M6-merge-one-level => kernel panic at kern/mm/buddy_test.c:23:     assertion failed: p == expect 
+M7-split-loses-right => kernel panic at kern/mm/buddy_test.c:68:     assertion failed: total == before && NR_FREE() == 0 
+M8-no-size-check-in-merge => kernel panic at kern/mm/buddy_test.c:23:     assertion failed: p == expect 

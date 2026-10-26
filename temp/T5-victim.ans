@@ -1,0 +1,84 @@
+sudo -n gdb -q -nx -p 14548
+lenovo@LYP-WIN:/mnt/f/Lab_2026/NKU-OS-LAB$ sudo -n gdb -q -nx -p 14548
+Attaching to process 14548
+[New LWP 14566]
+[New LWP 14567]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "[32m/lib/x86_64-linux-gnu/libthread_db.so.1[39m".
+[34m0x00007830ba318e1e[39m in [33m__ppoll[39m ([36mfds[39m=0x639713b520e0, [36mnfds[39m=6, [36mtimeout[39m=<optimized out>, [36msigmask[39m=0x0) at [32m../sysdeps/u
+nix/sysv/linux/ppoll.c[39m:42
+42      ../sysdeps/unix/sysv/linux/ppoll.c: No such file or directory.
+(gdb) set pagination off
+(gdb) set confirm off
+(gdb) set print frame-arguments none
+(gdb) set print pretty off
+(gdb) set style enabled on
+(gdb) handle SIGPIPE nostop noprint
+Signal        Stop      Print   Pass to program Description
+SIGPIPE       No        No      Yes             Broken pipe
+(gdb) break victim_tlb_hit if mmu_idx == 1 && page == 0xffffffffc2200000
+Breakpoint 1 at [34m0x6396df0e1ab5[39m: file [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m, line 979.
+(gdb) ignore 1 1
+Will ignore next crossing of breakpoint 1.
+(gdb) continue
+Continuing.
+[Switching to Thread 0x7830b997d640 (LWP 14567)]
+
+Thread 3 "qemu-system-ris" hit Breakpoint 1, [33mvictim_tlb_hit[39m ([36menv[39m=..., [36mmmu_idx[39m=..., [36mindex[39m=..., [36melt_ofs[39m=..., [36mpage[39m=
+...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:979
+979     [31m{[39m
+(gdb) bt 3
+#0  [33mvictim_tlb_hit[39m ([36menv[39m=..., [36mmmu_idx[39m=..., [36mindex[39m=..., [36melt_ofs[39m=..., [36mpage[39m=...) at [32m/home/lenovo/Environment/qemu-4.1
+.1/accel/tcg/cputlb.c[39m:979
+#1  [34m0x00006396df0e3bc3[39m in [33mload_helper[39m ([36mfull_load[39m=..., [36mcode_read[39m=..., [36mbig_endian[39m=..., [36msize[39m=..., [36mretaddr[39m=..., [36moi[39m=.
+.., [36maddr[39m=..., [36menv[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:1272
+#2  [33mfull_le_ldul_mmu[39m ([36menv[39m=..., [36maddr[39m=..., [36moi[39m=..., [36mretaddr[39m=...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/c
+putlb.c[39m:1423
+(More stack frames follow...)
+(gdb) p/x page
+$1 = 0xffffffffc2200000
+(gdb) p index
+$2 = 0
+(gdb) p elt_ofs
+$3 = 0
+(gdb) set $env = env
+(gdb) p/x env_tlb(env)->f[1].mask
+$4 = 0x7e0
+(gdb) p/x env_tlb(env)->f[1].table[index].addr_read
+$5 = 0xffffffffc0200000
+(gdb) set $old_main = env_tlb(env)->f[1].table[index].addr_read
+(gdb) set $i = 0
+(gdb) while $i < 8
+ >set $i = $i + 1
+ >end
+(gdb) break accel/tcg/cputlb.c:996
+Breakpoint 2 at [34m0x6396df0e1b2a[39m: file [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m, line 996.
+(gdb) continue
+Continuing.
+
+Thread 3 "qemu-system-ris" hit Breakpoint 2, [33mvictim_tlb_hit[39m ([36menv[39m=..., [36mmmu_idx[39m=..., [36mindex[39m=..., [36melt_ofs[39m=..., [36mpage[39m=
+...) at [32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:996
+996                 CPUTLBEntry tmptlb[31m,[39m [31m*[39mtlb [31m=[39m [31m&[1m[39menv_tlb[0m[31m[49m([39menv[31m)->[39mf[31m[[39mmmu_idx[31m].[39mtable[31m[[39mindex[31m];[39m
+(gdb) p vidx
+$6 = 0
+(gdb) set $vi = vidx
+(gdb) set $old_victim = env_tlb($env)->d[1].vtable[$vi].addr_read
+(gdb) finish
+Run till exit from #0  [33mvictim_tlb_hit[39m ([36menv[39m=..., [36mmmu_idx[39m=..., [36mindex[39m=..., [36melt_ofs[39m=..., [36mpage[39m=...) at [32m/home/lenovo/E
+nvironment/qemu-4.1.1/accel/tcg/cputlb.c[39m:996
+[33mload_helper[39m ([36mfull_load[39m=..., [36mcode_read[39m=..., [36mbig_endian[39m=..., [36msize[39m=..., [36mretaddr[39m=..., [36moi[39m=..., [36maddr[39m=..., [36menv[39m=...) at
+[32m/home/lenovo/Environment/qemu-4.1.1/accel/tcg/cputlb.c[39m:1272
+1272            [1m[34mif[0m[39m[49m [31m(![1m[39mvictim_tlb_hit[0m[31m[49m([39menv[31m,[39m mmu_idx[31m,[39m index[31m,[39m tlb_off[31m,[39m
+Value returned is $7 = true
+(gdb) set $hit = $
+(gdb) p $hit
+$8 = true
+(gdb) p/x $old_main
+$9 = 0xffffffffc0200000
+(gdb) p/x $old_victim
+$10 = 0xffffffffc2200000
+(gdb) p/x env_tlb($env)->f[1].table[0].addr_read
+$11 = 0xffffffffc2200000
+(gdb) p/x env_tlb($env)->d[1].vtable[$vi].addr_read
+$12 = 0xffffffffc0200000
+(gdb)
