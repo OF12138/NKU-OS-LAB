@@ -1,8 +1,10 @@
 # 检查 report/sections/*.prompt.md 中 [RELY] 的代码块是否与当前 code/ 一致
 # 比较前双方都去掉注释、行尾空白和空行，因此“省略注释”的引文可以通过；代码本身有出入的会被报告。
 # 标注为“修改前”的引文（描述历史版本）跳过。
+# 写代码的任务 [RELY] 引用框架原始代码，所以同时接受“导入框架”那次提交中的代码（提交信息以 “T0: 导入” 开头）。
 # 用法：python check-rely.py
 import re
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -28,6 +30,26 @@ sources = {p: norm(p.read_text(encoding="utf-8", errors="ignore"))
 
 
 ALL_LINES = {ln for lines in sources.values() for ln in lines}
+
+
+def framework_lines():
+    git = ["git", "-C", str(ROOT)]
+    rev = subprocess.run(git + ["log", "--format=%H", "--grep=^T0: 导入", "-1"],
+                         capture_output=True, text=True, encoding="utf-8").stdout.strip()
+    if not rev:
+        return set()
+    files = subprocess.run(git + ["ls-tree", "-r", "--name-only", rev, "code"],
+                           capture_output=True, text=True, encoding="utf-8").stdout.split()
+    lines = set()
+    for f in files:
+        if Path(f).suffix in {".c", ".h", ".S", ".ld", ".mk", ""}:
+            src = subprocess.run(git + ["show", f"{rev}:{f}"], capture_output=True,
+                                 text=True, encoding="utf-8", errors="ignore").stdout
+            lines.update(norm(src))
+    return lines
+
+
+ALL_LINES |= framework_lines()
 
 
 bad = 0

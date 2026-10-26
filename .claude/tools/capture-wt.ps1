@@ -1,5 +1,5 @@
-﻿param([string]$Out, [int]$Cols = 190, [int]$Lines = 50, [int]$Wait = 3)
-# 打开一个 conhost 窗口 attach 到 WSL 中的 tmux 会话 t2，用 PrintWindow 截取该窗口后关闭
+﻿param([string]$Out, [int]$Cols = 190, [int]$Lines = 50, [int]$Wait = 3, [string]$Title = "ucore")
+# 打开一个 Windows Terminal 窗口（标签标题为 -Title）attach 到 WSL 中的 tmux 会话 t2，用 PrintWindow 截取该窗口后关闭
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
 using System;
@@ -16,12 +16,12 @@ public class W {
 }
 "@
 [W]::SetProcessDPIAware() | Out-Null
-Start-Process wt.exe -ArgumentList "-w new --size $Cols,$Lines new-tab --title lab1-gdb --suppressApplicationTitle wsl.exe -e tmux attach -t t2"
+Start-Process wt.exe -ArgumentList "-w new --size $Cols,$Lines new-tab --title $Title --suppressApplicationTitle wsl.exe -e tmux attach -t t2"
 $h = [IntPtr]::Zero
 for ($i = 0; $i -lt 50 -and $h -eq [IntPtr]::Zero; $i++) {
   Start-Sleep -Milliseconds 200
   Add-Type -AssemblyName UIAutomationClient
-  $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, 'lab1-gdb')
+  $cond = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty, $Title)
   $e = [System.Windows.Automation.AutomationElement]::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children, $cond)
   if ($e) { $h = [IntPtr]$e.Current.NativeWindowHandle }
 }
