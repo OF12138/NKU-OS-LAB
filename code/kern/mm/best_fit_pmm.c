@@ -5,6 +5,130 @@
 #include <stdio.h>
 
 //lab2 请补充你在lab2中的代码
+//lab2 function2-2 2414099
+
+static free_area_t free_area;
+
+#define free_list (free_area.free_list)
+#define nr_free (free_area.nr_free)
+
+static void best_fit_check(void);
+
+// 初始化管理器：把空闲链表置空（头结点 prev/next 都指向自己），空闲页数清零
+static void
+best_fit_init(void) {
+    list_init(&free_list);
+    nr_free = 0;
+}
+
+// 按地址插入新空闲块，再与紧邻的前后块合并。
+static void best_fit_insert_block(struct Page *base, size_t n) {
+    list_entry_t *le = list_next(&free_list);
+    while (le != &free_list && le2page(le, page_link) < base) {
+        le = list_next(le);
+    }
+    base->property = n;
+    SetPageProperty(base);
+    list_add_before(le, &base->page_link);
+    nr_free += n;
+    // 左右合并：如果 base 前后有空闲块，且地址连续，就把它们合并成一个更大的块
+    le = list_prev(&base->page_link);
+    if (le != &free_list) {
+        struct Page *prev = le2page(le, page_link);
+        if (prev + prev->property == base) {
+            prev->property += base->property;
+            ClearPageProperty(base);
+            base->property = 0;
+            list_del(&base->page_link);
+            base = prev;
+        }
+    }
+    le = list_next(&base->page_link);
+    if (le != &free_list) {
+        struct Page *next = le2page(le, page_link);
+        if (base + base->property == next) {
+            base->property += next->property;
+            ClearPageProperty(next);
+            next->property = 0;
+            list_del(&next->page_link);
+        }
+    }
+}
+
+// 把一段连续的空闲物理页登记为一个空闲块
+static void best_fit_init_memmap(struct Page *base, size_t n) {
+    assert(n > 0);
+    for (struct Page *p = base; p != base + n; p++) {
+        // 确认页之前确实是保留状态（page_init 设置的）
+        assert(PageReserved(p));
+        p->flags = p->property = 0;
+        set_page_ref(p, 0);
+    }
+    best_fit_insert_block(base, n);
+}
+
+// 返回 n 个连续物理页的首页，失败返回 NULL
+static struct Page *best_fit_alloc_pages(size_t n) {
+    assert(n > 0);
+    // 快速失败：全部空闲页加起来都不够 n 页
+    if (n > nr_free) {
+        return NULL;
+    }
+
+    // 选择能满足请求的最小块；同大小时保留地址较低者。
+    struct Page *best = NULL;
+    list_entry_t *le = &free_list;
+    while ((le = list_next(le)) != &free_list) {
+        struct Page *p = le2page(le, page_link);
+        if (p->property >= n && (best == NULL || p->property < best->property)) {
+            best = p;
+            if (p->property == n) {
+                break;
+            }
+        }
+    }
+    if (best != NULL) {
+        list_entry_t *prev = list_prev(&best->page_link);
+        list_del(&best->page_link);
+        if (best->property > n) {
+            struct Page *rest = best + n;
+            rest->property = best->property - n;
+            SetPageProperty(rest);
+            list_add(prev, &rest->page_link);
+        }
+        ClearPageProperty(best);
+        best->property = 0;
+        nr_free -= n;
+    }
+    return best;
+}
+
+// 释放 [base, base+n) 这 n 个连续页，并尽量与相邻空闲块合并
+static void best_fit_free_pages(struct Page *base, size_t n) {
+    assert(n > 0);
+    for (struct Page *p = base; p != base + n; p++) {
+        // 确保这些页必须是之前分配出去的（不是保留页，也不是空闲块首页）
+        assert(!PageReserved(p) && !PageProperty(p));
+        p->flags = p->property = 0;
+        set_page_ref(p, 0);
+    }
+    best_fit_insert_block(base, n);
+}
+
+static size_t
+best_fit_nr_free_pages(void) {
+    return nr_free;
+}
+
+const struct pmm_manager best_fit_pmm_manager = {
+    .name = "best_fit_pmm_manager",
+    .init = best_fit_init,
+    .init_memmap = best_fit_init_memmap,
+    .alloc_pages = best_fit_alloc_pages,
+    .free_pages = best_fit_free_pages,
+    .nr_free_pages = best_fit_nr_free_pages,
+    .check = best_fit_check,
+};
 
 static void
 basic_check(void) {

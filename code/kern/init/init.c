@@ -16,8 +16,8 @@ void grade_backtrace(void);
 int kern_init(void) {
     extern char edata[], end[];
     // 先清零 BSS，再读取并保存 DTB 的内存信息，避免被清零覆盖（为了解释变化 正式上传时我觉得应该删去这句话）
-    memset(edata, 0, end - edata);
-    dtb_init();
+    memset(edata, 0, end - edata); // clear .bss 
+    dtb_init(); //在kern_entry部分的初始化结束，我们正式进入到kern_init之后，会执行dtb_init函数来读取设备树结构中储存的相关信息
     cons_init();  // init the console
     const char *message = "(THU.CST) os is loading ...\0";
     //cprintf("%s\n\n", message);

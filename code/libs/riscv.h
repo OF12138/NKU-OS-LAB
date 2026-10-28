@@ -3,6 +3,12 @@
 #ifndef __LIBS_RISCV_H__
 #define __LIBS_RISCV_H__
 
+// sbadaddr 是 1.10 版特权级规范之前对 stval 的叫法，binutils 2.45 等新版汇编器已不再识别。
+// 框架的 SAVE_ALL 仍写 sbadaddr，这里只在汇编文件中把它换成 stval（两者是同一个 CSR 0x143）
+#ifdef __ASSEMBLER__
+#define sbadaddr stval
+#endif
+
 #if __riscv_xlen == 64
 # define SLL32    sllw
 # define STORE    sd
