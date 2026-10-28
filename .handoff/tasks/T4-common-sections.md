@@ -24,7 +24,7 @@
 - **思考题分析要点**：
   - 思考题 1：RISC-V 规范在 1.10 版之前要求基地址必须 4 字节对齐（最低 2 位必须为 00）。1.10 引入 MODE 字段时将 `00` 定义为 Direct 模式，使旧代码直接写入 4 字节对齐基地址时自然落入 Direct 模式且基地址不变，实现硬件级向前向后兼容；同时保留单入口软件分发的控制流语义。
   - 思考题 2：宏定义 `do { } while (0)` 解决语法歧义与宏展开尾随分号在 `if-else` 分支中的空语句语法报错（`'else' without a previous 'if'`），同时构成独立局部作用域且具备零运行时开销；`pmm.c` 维护全局空闲链表与页描述符等临界资源，关中断保证单核环境下内存分配/释放操作的原子性，避免异步时钟/外部中断重入或中断上下文中可能的内存操作造成链表破坏与竞争状态；`__intr_save()` 保存原始 SIE 标志位支持嵌套调用。
-- **各成员工具链与环境**：沿用 lab2 确定的工具链分工，nagilix 使用 Antigravity CLI / IDE + Gemini 4 Argon / Claude Opus 5.5，openfar 使用 Claude Code + Claude Opus 5.5，lyp 使用 Codex + gpt-6.1-sol。
+- **各成员工具链与环境**：沿用 lab2 确定的工具链分工，nagilix 使用 Antigravity（终端 Agent） + Gemini 4 Argon / Claude Opus 5.5，openfar 使用 Claude Code + Claude Opus 5.5，lyp 使用 Codex + gpt-6.1-sol。
 
 ## 验证结果
 - 思考题解答与公共章节已完成自我逻辑自洽性与规范合规性校验。

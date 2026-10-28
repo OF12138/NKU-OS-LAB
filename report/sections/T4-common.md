@@ -42,7 +42,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | 2411264-张远 | T0, T1, T3, T5 | Claude Code（终端 Agent） | Claude Opus 5.5 | 负责环境兼容性适配、功能模块一（trapentry.S）、整体逻辑分析与报告集成 |
 | 2414099-李云鹏 | T2, T3 | Codex（终端 Agent） | gpt-6.1-sol | 负责功能模块二（trap.c 异常/中断分发）与 OS 原理对照分析 |
-| 2413074-刘昀皓 | T4 | Antigravity CLI / Antigravity IDE | Gemini 4 Argon / Claude Opus 5.5 | 负责正文思考题深度剖析、公共章节初稿撰写与测试集成验证 |
+| 2413074-刘昀皓 | T4 | Antigravity（终端 Agent） | Gemini 4 Argon / Claude Opus 5.5 | 负责正文思考题深度剖析、公共章节初稿撰写与测试集成验证 |
 
 ---
 
