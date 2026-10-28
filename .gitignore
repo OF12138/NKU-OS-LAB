@@ -4,3 +4,4 @@ obj/
 .qemu.out
 reference/
 report/*.pdf
+temp/quick-start.md
