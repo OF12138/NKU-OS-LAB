@@ -7,7 +7,7 @@
 | ID | 任务 | 负责人 | DDL | 状态 | 主要文件 |
 |----|------|--------|-----|------|----------|
 | T0 | 环境与框架：填入 lab2 代码、grade 使用 QEMU 4.1.1 | openfar | 10-29 | 完成 | code/kern/mm/pmm.c, code/kern/mm/best_fit_pmm.c, code/Makefile, code/libs/riscv.h |
-| T1 | 功能模块一：RESTORE_ALL 与 `__alltraps`（含 GDB 验证 Trap 进出） | openfar | 11-01 | 待开始 | code/kern/trap/trapentry.S, report/sections/T1-* |
+| T1 | 功能模块一：RESTORE_ALL 与 `__alltraps`（含 GDB 验证 Trap 进出） | openfar | 11-01 | 完成 | code/kern/trap/trapentry.S, report/sections/T1-* |
 | T2 | 功能模块二：interrupt_handler 与 exception_handler（含 GDB 验证 epc 更新） | lyp | 11-02 | 待开始 | code/kern/trap/trap.c, report/sections/T2-* |
 | T3 | 整体逻辑分析（openfar）；知识点与 OS 原理对应（lyp） | openfar, lyp | 11-05 | 待开始 | report/sections/T3-* |
 | T4 | 指导书思考题；实验目的、实验环境、测试与验证、实验总结初稿 | nagilix | 思考题 11-03，公共章节 11-06 | 待开始 | report/sections/T4-*, report/images/T4-* |
@@ -18,7 +18,7 @@
 
 ## 全组须知
 - 环境（T0，10-28）：设置 `QEMU=<4.1.1 的完整路径>` 后，`make qemu` 和 `make grade` 都会用 4.1.1（Makefile 会把它的目录放到 grade.sh 的 PATH 最前面）；不设时 grade 用 PATH 里的 qemu，WSL 自带的 8.2.2 启动不了本框架。
-- 框架原样编译不过：`trap.c` 调用的 `interrupt_handler` / `exception_handler` 要等 T2 实现；新版 binutils（2.45）不认识 SAVE_ALL 里的旧 CSR 名 `sbadaddr`，T0 已在 `libs/riscv.h` 里只对汇编 `#define sbadaddr stval`，SAVE_ALL 本身未改。
+- T1 已完成（10-28）：`trap()` 返回后 `tf->epc` 会写回 `sepc`，异常处理只需修改 `tf->epc`。仓库代码在 T2 实现两个处理函数前仍编译不过；新版 binutils（2.45）不认识 SAVE_ALL 里的旧 CSR 名 `sbadaddr`，T0 已在 `libs/riscv.h` 里只对汇编 `#define sbadaddr stval`，SAVE_ALL 本身未改。
 - `make grade` 会把 `tools/test_lab3.c` 的测试插到 `kern_init()` 的第二个 `idt_init()`、`clock_init()`、`intr_enable()` 之后：不要改 `init.c` 中这几句的写法和顺序，也不要改 `tools/` 下的评测文件。
 - 评测按字符串匹配：`Breakpoint at`、`Illegal instruction at`、`Supervisor software interrupt`、`Unknown interrupt: cause 15`、`100 ticks`，未识别异常要走 `print_trapframe`。
 - `YOUR CODE` 替换为实现者学号：trapentry.S → 2411264，trap.c → 2414099。

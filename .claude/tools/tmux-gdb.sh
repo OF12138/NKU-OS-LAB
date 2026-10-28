@@ -6,7 +6,8 @@
 export PATH=$HOME/Environment/riscv/riscv-elf-toolchains/bin:$PATH
 DIR=$1; shift
 cd "$DIR" && make -s >/dev/null
-pkill -f qemu-system-riscv64; tmux kill-server 2>/dev/null; sleep 0.5
+# 只匹配以 qemu 程序开头的命令行：调用方的 bash -c 里若含 "QEMU=.../qemu-system-riscv64"，-f 会把调用方自己杀掉
+pkill -f "^[^ ]*qemu-system-riscv64"; tmux kill-server 2>/dev/null; sleep 0.5
 tmux new-session -d -s t2 -x 190 -y 50 -c "$DIR"
 tmux set -t t2 status off
 tmux split-window -h -t t2 -c "$DIR"
@@ -15,5 +16,6 @@ sleep 1.5                                   # 等 shell 提示符就绪，避免
 tmux send-keys -t t2:0.0 "make debug $MAKEARGS" Enter; sleep 1
 tmux send-keys -t t2:0.1 "make gdb $MAKEARGS" Enter; sleep 3
 tmux send-keys -t t2:0.0 C-l; tmux send-keys -t t2:0.1 C-l; sleep 0.3
-for c in "$@"; do tmux send-keys -t t2:0.1 "$c" Enter; sleep 0.6; done
+# -l 按字面发送，否则 delete、end 这类词会被当成键名
+for c in "$@"; do tmux send-keys -t t2:0.1 -l "$c"; tmux send-keys -t t2:0.1 Enter; sleep 0.6; done
 sleep 1

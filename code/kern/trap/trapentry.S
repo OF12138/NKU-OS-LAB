@@ -56,8 +56,50 @@
 
     .macro RESTORE_ALL
 
-    #lab3 function1 YOUR CODE
+    #lab3 function1 2411264
 
+    # 先用 s1、s2 作中转写回 sstatus 和 sepc（sret 依据它们返回），s1、s2 本身随后再恢复
+    # badvaddr、cause 只是给 trap() 看的现场记录，sret 不读它们，不需要写回
+    LOAD s1, 32*REGBYTES(sp)
+    LOAD s2, 33*REGBYTES(sp)
+    csrw sstatus, s1
+    csrw sepc, s2
+
+    # 按 SAVE_ALL 的布局恢复通用寄存器，x0 恒为 0 不用恢复
+    LOAD x1, 1*REGBYTES(sp)
+    LOAD x3, 3*REGBYTES(sp)
+    LOAD x4, 4*REGBYTES(sp)
+    LOAD x5, 5*REGBYTES(sp)
+    LOAD x6, 6*REGBYTES(sp)
+    LOAD x7, 7*REGBYTES(sp)
+    LOAD x8, 8*REGBYTES(sp)
+    LOAD x9, 9*REGBYTES(sp)
+    LOAD x10, 10*REGBYTES(sp)
+    LOAD x11, 11*REGBYTES(sp)
+    LOAD x12, 12*REGBYTES(sp)
+    LOAD x13, 13*REGBYTES(sp)
+    LOAD x14, 14*REGBYTES(sp)
+    LOAD x15, 15*REGBYTES(sp)
+    LOAD x16, 16*REGBYTES(sp)
+    LOAD x17, 17*REGBYTES(sp)
+    LOAD x18, 18*REGBYTES(sp)
+    LOAD x19, 19*REGBYTES(sp)
+    LOAD x20, 20*REGBYTES(sp)
+    LOAD x21, 21*REGBYTES(sp)
+    LOAD x22, 22*REGBYTES(sp)
+    LOAD x23, 23*REGBYTES(sp)
+    LOAD x24, 24*REGBYTES(sp)
+    LOAD x25, 25*REGBYTES(sp)
+    LOAD x26, 26*REGBYTES(sp)
+    LOAD x27, 27*REGBYTES(sp)
+    LOAD x28, 28*REGBYTES(sp)
+    LOAD x29, 29*REGBYTES(sp)
+    LOAD x30, 30*REGBYTES(sp)
+    LOAD x31, 31*REGBYTES(sp)
+
+    # sp 最后恢复：2 号槽位存的是 SAVE_ALL 经 sscratch 转存的 Trap 前的 sp，
+    # 一旦恢复，sp 就不再指向 Trap frame，之后不能再从帧里取数据
+    LOAD x2, 2*REGBYTES(sp)
     .endm
 
     .globl __alltraps
@@ -65,7 +107,10 @@
 __alltraps:
     SAVE_ALL
 
-    #lab3 function1 YOUR CODE
+    #lab3 function1 2411264
+    # 此时 sp 指向 Trap frame 的起始地址；按调用约定第一个参数放在 a0
+    move  a0, sp
+    jal trap
     # sp should be the same as before "jal trap"
 
     .globl __trapret
