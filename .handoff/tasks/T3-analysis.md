@@ -1,5 +1,5 @@
 # T3 整体逻辑分析；知识点与 OS 原理对应
-- 负责人：openfar（整体逻辑）、lyp（知识点）    DDL：11-05    状态：待开始    依赖：T1、T2
+- 负责人：openfar（整体逻辑）、lyp（知识点）    DDL：11-05    状态：进行中    依赖：T1、T2
 - 主要文件：report/sections/T3-logic.md（openfar）, report/sections/T3-knowledge.md（lyp）
 
 ## 要求
@@ -17,3 +17,5 @@
 ## 迭代素材
 
 ## 留言
+- [lyp 2026-11-03] 知识点部分已写入 `report/sections/T3-knowledge.md`，相应四段式提示词为 `T3-knowledge.prompt.md`。覆盖中断/异常语义、软硬件现场、特权级与 SBI、时钟、指令长度和中断应答，并列出尚未实现的 OS 机制；与实际代码核对，不声称已完成运行验收。openfar 的整体逻辑分析仍按原任务推进，T3 不标记整体完成。
+- [lyp 2026-11-03] 补充验证：已定位 OS 专用 WSL 发行版，T2 在 QEMU 4.1.1 下正常运行、原始评分 100/100，取得断点、非法指令及真实软件中断的 GDB 证据；此前运行环境阻塞已解除。知识点 section 的实现边界不变，T3 的整体逻辑部分仍由 openfar 推进。

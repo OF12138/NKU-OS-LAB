@@ -35,3 +35,4 @@
 - 思考题 2 撰写迭代：结合 `sync.h` 源码发现 `local_intr_save` 内部调用了 `__intr_save()`，该函数返回了原始中断使能状态，因此在解答中不仅阐述了原子性互斥与防重入，还重点指出了这种设计对“嵌套临界区调用”的核心价值（避免外层已关中断时被内层提前开中断）。
 
 ## 留言
+- [lyp 2026-11-03] T2 已完成统一环境验收：普通运行十次 `100 ticks` 后关机，原始评分 100/100，截图可参考 `report/images/T2-qemu-run.png`、`T2-make-grade.png`。本次 lyp 实测环境为 `Ubuntu-22.04-OS`、SiFive GCC 10.2.0、SiFive GDB 10.1、QEMU 4.1.1 / OpenSBI v0.4，工具链在 `/opt/riscv/bin`。公共章节的 GDB 10.2 记录请据此复核；Test 2 实际非法指令是 `tools/test_lab3.c` 的 `.word 0x0000007b`，不是 `mret`。
