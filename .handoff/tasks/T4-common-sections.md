@@ -1,5 +1,5 @@
 # T4 指导书思考题；公共章节初稿
-- 负责人：nagilix    DDL：思考题 11-03，公共章节 11-06    状态：进行中    依赖：测试截图依赖 T1、T2
+- 负责人：nagilix    DDL：思考题 11-03，公共章节 11-06    状态：完成    依赖：测试截图依赖 T1、T2
 - 主要文件：report/sections/T4-questions.md, report/sections/T4-common.md, report/images/T4-*
 
 ## 要求
@@ -14,10 +14,9 @@
 - 10-28：已完成两道指导书思考题的系统原理剖析与文档撰写，产出 `report/sections/T4-questions.md`。
 - 10-28：已按四段式规范完成反推提示词整理，产出 `report/sections/T4-questions.prompt.md`。
 - 10-28：已起草完成公共章节初稿 `report/sections/T4-common.md`（含实验目的、实验环境全组成员软硬件与 AI 工具表、测试评测架构说明、AI 协作开发经验深度总结）。
-- 下一步：
-  1. 等待 11-02 功能模块二（T2，lyp）代码完成并合入 lab3 主干。
-  2. 依赖就绪后，在统一 QEMU 4.1.1 环境下执行 `make qemu` 与 `make grade`，截取测试截图保存至 `report/images/T4-*.png`，补齐公共章节测试图表。
-  3. 协同 openfar 进行最终 `report.md` 与 `prompt.md` 的汇总校验。
+- 11-05：T1、T2 依赖解除，已完成公共章节 `report/sections/T4-common.md` 校准（修正工具链小版本号为 lyp GDB 10.1、nagilix GCC 15.1.0/GDB 16.3；修正 Test 2 评测描述为 `.word 0x0000007b` 4 字节未定义指令）。
+- 11-05：在统一 QEMU 4.1.1 环境下实测 `make grade` 满分（100/100）及 `make qemu` 10 次时钟中断后正常关机；将运行截图挂载为 `report/images/T4-qemu-run.png` 与 `report/images/T4-make-grade.png` 并嵌入报告公共章节。
+- 11-05：思考题、公共章节及反推提示词均已交付，T4 任务宣告完成。下一步配合 openfar 进行终期集成验收。
 
 ## 关键决策与结论
 - **QEMU 4.1.1 路径**：nagilix 本地路径为 `/home/nagilix/Environment/qemu-4.1.1/riscv64-softmmu/qemu-system-riscv64`，评测时须显式设置 `QEMU` 环境变量。
@@ -28,11 +27,14 @@
 
 ## 验证结果
 - 思考题解答与公共章节已完成自我逻辑自洽性与规范合规性校验。
-- 测试运行截图（`make qemu` 与 `make grade`）暂未生成，严格依赖 T1、T2 完成。
+- `make grade` 在 QEMU 4.1.1 下得分 100/100（Test 1 35/35，Test 2 25/25，Test 3 40/40）。
+- `make qemu` 运行正常，连续 10 次输出 `100 ticks` 后平稳关机。
+- 截图已完整入库：`report/images/T4-qemu-run.png`、`report/images/T4-make-grade.png`。
 
 ## 迭代素材
 - 思考题 1 撰写迭代：初期推导时容易仅关注到 Direct 模式跳转公式（Target PC = BASE << 2），后补充分析了旧规范硬件实现对最低 2 位的硬连处理（hardwired to 0），以及单入口统一软件分发（__alltraps 读 scause）在控制流架构层面的无缝承接，形成从编码、地址、控制流到硬件实现四维一体的完整证明。
 - 思考题 2 撰写迭代：结合 `sync.h` 源码发现 `local_intr_save` 内部调用了 `__intr_save()`，该函数返回了原始中断使能状态，因此在解答中不仅阐述了原子性互斥与防重入，还重点指出了这种设计对“嵌套临界区调用”的核心价值（避免外层已关中断时被内层提前开中断）。
+- 公共章节与评测描述核准迭代：依据 lyp 留言与 `code/tools/test_lab3.c` 源码排查，发现 Test 2 注入的并非此前推测的 S 态 `mret`，而是直接编码为 4 字节的自定义未定义操作码 `.word 0x0000007b`；同时校准了各成员 GDB/GCC 的实际版本号，确保实验环境与评测原理陈述的绝对真实与严密。
 
 ## 留言
 - [lyp 2026-11-03] T2 已完成统一环境验收：普通运行十次 `100 ticks` 后关机，原始评分 100/100，截图可参考 `report/images/T2-qemu-run.png`、`T2-make-grade.png`。本次 lyp 实测环境为 `Ubuntu-22.04-OS`、SiFive GCC 10.2.0、SiFive GDB 10.1、QEMU 4.1.1 / OpenSBI v0.4，工具链在 `/opt/riscv/bin`。公共章节的 GDB 10.2 记录请据此复核；Test 2 实际非法指令是 `tools/test_lab3.c` 的 `.word 0x0000007b`，不是 `mret`。

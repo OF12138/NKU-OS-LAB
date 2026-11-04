@@ -29,8 +29,8 @@
 | 成员 | 宿主系统 | QEMU 版本 | 交叉编译工具链 | 调试器版本 |
 | :--- | :--- | :--- | :--- | :--- |
 | 2411264-张远 | WSL2 Ubuntu 24.04 | 4.1.1（OpenSBI v0.4） | riscv64-unknown-elf-gcc 15.1.0 | riscv64-unknown-elf-gdb 15.1 |
-| 2414099-李云鹏 | WSL2 Ubuntu 22.04 | 4.1.1（OpenSBI v0.4） | SiFive riscv64-unknown-elf-gcc 10.2.0 | riscv64-unknown-elf-gdb 10.2 |
-| 2413074-刘昀皓 | WSL2 Ubuntu 24.04 | 4.1.1（OpenSBI v0.4） | riscv64-unknown-elf-gcc 12.2.0 | riscv64-unknown-elf-gdb 12.1 |
+| 2414099-李云鹏 | WSL2 Ubuntu 22.04 | 4.1.1（OpenSBI v0.4） | SiFive riscv64-unknown-elf-gcc 10.2.0 | riscv64-unknown-elf-gdb 10.1 |
+| 2413074-刘昀皓 | WSL2 Ubuntu 24.04 | 4.1.1（OpenSBI v0.4） | riscv64-unknown-elf-gcc 15.1.0 | riscv64-unknown-elf-gdb 16.3 |
 
 全组成员统一在本地通过设置 `export QEMU=$HOME/Environment/qemu-4.1.1/riscv64-softmmu/qemu-system-riscv64` 确保 `Makefile` 与评测脚本 `tools/grade.sh` 调用完全一致的底层模拟器。
 
@@ -48,15 +48,13 @@
 
 # 五、测试与验证
 
-> **说明**：本节待 11-02 功能模块一（T1）与功能模块二（T2）代码全部合并入主干后，在统一的 QEMU 4.1.1 环境下执行完整测试，并更新对应运行截图。此处先给出测试设计与评测基准。
-
 ### 1. 测试设计与评测原理
 
 Lab 3 的自动化评测系统由 `code/Makefile` 和 `tools/grade.sh` 驱动，评测核心机制如下：
 1. **测试注入机制**：`grade.sh` 将 `tools/test_lab3.c` 动态注入到内核初始化流程 `kern_init()` 中，位置紧跟在第二次 `idt_init()`、`clock_init()` 以及 `intr_enable()` 之后；
 2. **多场景异常与中断触发**：
    - **Test 1（断点异常与寄存器现场恢复）**：通过汇编指令 `ebreak` 触发断点异常，在异常处理例程返回后逐一比对全部 32 个通用寄存器是否与异常触发前完全一致，严格验证 `RESTORE_ALL` 对寄存器现场的保真度；
-   - **Test 2（非法指令异常与返回地址推进）**：执行特权级不匹配的指令（如在 S 态执行 M 态专用的 `mret` 指令），触发非法指令异常，检验 `exception_handler` 是否正确识别并将 `tf->epc` 推进 4 字节以跳过非法指令继续向下执行；
+   - **Test 2（非法指令异常与返回地址推进）**：通过执行目标平台未定义的 4 字节机器指令（`asm volatile(".word 0x0000007b")`）触发非法指令异常，检验 `exception_handler` 是否能正确捕获并根据 32 位指令编码将 `tf->epc` 正确推进 4 字节，以跳过该非法指令并安全返回原执行流；
    - **Test 3（软件中断与时钟中断驱动）**：触发管理态软件中断，并开启时钟中断持续运行，检验内核是否能够每 100 次时钟滴答稳定输出 `100 ticks`。
 3. **输出关键字正则匹配**：评测脚本通过比对 QEMU 控制台输出中的关健标志字符串（`Breakpoint at`、`Illegal instruction at`、`Supervisor software interrupt`、`100 ticks`）判定各测试用例是否通过。
 
@@ -68,7 +66,9 @@ Lab 3 的自动化评测系统由 `code/Makefile` 和 `tools/grade.sh` 驱动，
 make qemu
 ```
 
-*(待 T1、T2 代码集成后在此嵌入 `report/images/T4-qemu-run.png`，展示 OpenSBI v0.4 启动横幅与周期性 100 ticks 稳定打印输出)*
+内核启动后正确完成 DTB 初始化与物理内存探测，并在配置时钟中断后稳定进入周期性时钟中断循环，每 100 个 tick 输出一次 `100 ticks`，累计输出 10 次后触发 SBI 正常关机：
+
+<p align="center"><img src="../images/T4-qemu-run.png" alt="QEMU 4.1.1 内核日常运行与时钟中断输出" width="680"></p>
 
 #### （2）自动化评测输出（`make grade`）
 
@@ -76,7 +76,9 @@ make qemu
 make grade
 ```
 
-*(待 T1、T2 代码集成后在此嵌入 `report/images/T4-make-grade.png`，展示三项测试全部通过且得分达到 100/100 的完整终端截图)*
+在统一 QEMU 4.1.1 环境下执行自动化评测，3 项评测（断点异常与寄存器现场恢复 35 分、非法指令 EPC 推进与返回 25 分、时钟中断重装填与重复 Trap 响应 40 分）全部通过，满分通过测试：
+
+<p align="center"><img src="../images/T4-make-grade.png" alt="Lab 3 自动化评测 100/100 满分结果" width="680"></p>
 
 ---
 
