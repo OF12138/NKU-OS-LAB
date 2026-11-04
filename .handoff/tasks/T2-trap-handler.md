@@ -20,6 +20,7 @@
 - 2026-11-03：两个处理函数、模块报告及最终提示词完成；QEMU 4.1.1 下编译、正常运行、原始评分及两类异常的 GDB 取证均通过，额外完成真实软件中断补测。
 - 交付：`T2-trap-handler.md`、`T2-trap-handler.prompt.md` 及五张 `T2-*.png`，等待报告集成；T3 的 lyp 知识点部分也已交付，见共同任务留言。
 - 本任务无剩余运行环境阻塞。集成后最终评测仍由 openfar 按 T5 执行。
+- 2026-11-04：在线指导书接口复核完成，无需修改实现或最终提示词；拟向 openfar、nagilix 通知结论，但飞书 CLI 的 user 身份查询返回 `need_user_authorization`（缺少 `contact:user:search` 用户授权），尚未发送。恢复用户授权后补发，注明本次为静态核查、Lab3 DDL 为 11-08。
 
 ## 关键决策与结论
 - 只修改 `trap.c` 功能模块二区域，保留标记并填写 `2414099`，未改现有其他函数、初始化锚点或评测文件。
@@ -42,7 +43,9 @@
 - 真实软件中断补测：来宾执行 CSR 指令使能 SSIE 并设置 SSIP 后，捕获 `cause=0x8000000000000001`；处理后 SSIP 从 1 清到 0，帧 EPC 和 sret 后 PC 均为 `0xffffffffc0200832`，无推进。证据在 `gdb-software-enabled/`；截图 `T2-software-interrupt.png`。
 - 图片从真实日志渲染，保留数值和输出内容，仅展开制表符及折行；评分图摘取原日志的构建、运行和评分行。
 - 收尾检查：`python .claude/tools/check-rely.py` 全部通过，`git diff --check` 通过；五张图片引用均有效，代码围栏成对，评测文件、`init.c`、`trapentry.S` 均无改动。
-- 在线指导书读取失败，本次按任务摘录、原框架和原始评测核对；远端同步此前因 GitHub 443 连接失败未完成。
+- 2026-11-04 接口复核：已直接读取在线 Lab3 全部章节，重点对照「练习」功能模块二及「滴答滴答（时钟中断）」。已提交实现（`5a43fec`）与当前工作区均使用要求的两个处理函数签名、`struct trapframe`、原因码宏、`clock_set_next_event()`、全局 `ticks`、`TICK_NUM`、`print_ticks()`、`sbi_shutdown()` 和 `print_trapframe(tf)`，未发现接口使用偏差；原有其他函数未改。
+- 时钟调用链为 `interrupt_handler -> clock_set_next_event -> sbi_set_timer -> sbi_call`，与教程的封装层次一致；教程示例的 `get_time()` 在本框架中名为 `get_cycles()`，不需要在处理函数中直接调用。框架未定义 `SHUTDOWN_AFTER`，在模块区域补充为 10；软件中断额外使用框架 `clear_csr(sip, SIP_SSIP)`，指导书未要求必须调用 `sbi_clear_ipi()`。
+- 本次为源码和接口静态核查，未重跑构建、QEMU 或评分，不能视为新增运行验收。当前 `trap.c` 的已有未提交改动为注释及等价的 2/4 字节分支展开，予以保留；现有最终提示词与复核结论一致。远端 fetch 成功，复核开始时 HEAD 与 `origin/lab3` 一致。
 
 ## 迭代素材
 - 实现前发现关机阈值缺失且测试等待 200 ticks、断点可能压缩、合成中断帧可能无最高位 → 分别选择十次打印关机、首半字判断长度、清位提取原因；属于设计核对，不虚构评分失败。
