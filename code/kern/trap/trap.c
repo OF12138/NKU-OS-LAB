@@ -86,14 +86,18 @@ void print_regs(struct pushregs *gpr) {
 #define SHUTDOWN_AFTER 10
 
 void interrupt_handler(struct trapframe *tf) {
+    // 清除 scause 最高位的 Interrupt 标志，保留低位的中断编号
     uintptr_t cause = tf->cause & ~((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1));
-    static size_t printed_ticks = 0;
+    static size_t printed_ticks = 0;        // 用于记录已经打印了多少次时钟信息
 
     switch (cause) {
         case IRQ_U_SOFT:
             cprintf("User software interrupt\n");
             break;
         case IRQ_S_SOFT:
+            // 就是尝试清除 S 模式软件中断的待处理标志
+            // sip：Supervisor Interrupt Pending，记录哪些中断正处于待处理状态
+            // SIP_SSIP：sip 中表示 S 模式软件中断待处理的标志位
             clear_csr(sip, SIP_SSIP);
             cprintf("Supervisor software interrupt\n");
             break;
@@ -107,9 +111,14 @@ void interrupt_handler(struct trapframe *tf) {
             cprintf("User timer interrupt\n");
             break;
         case IRQ_S_TIMER:
+            // 设置下一次时钟中断
             clock_set_next_event();
+            // 累加时钟中断次数
             ticks++;
+
+            // 检查是否达到指定节拍数
             if (ticks % TICK_NUM == 0) {
+                // 打印信息并检查是否需要关机
                 print_ticks();
                 if (++printed_ticks == SHUTDOWN_AFTER) {
                     sbi_shutdown();
@@ -149,6 +158,7 @@ void interrupt_handler(struct trapframe *tf) {
 
 void exception_handler(struct trapframe *tf) {
     switch (tf->cause) {
+        // 处理非法指令异常和断点异常
         case CAUSE_ILLEGAL_INSTRUCTION:
             cprintf("Illegal instruction at 0x%016lx\n", (unsigned long)tf->epc);
             break;
@@ -160,9 +170,14 @@ void exception_handler(struct trapframe *tf) {
             return;
     }
 
-    // 本实验处理可读内核代码中的 16/32 位指令，先读半字以兼容 2 字节对齐。
+    // 修改 tf->epc，让 CPU 跳过发生异常的那条指令
+    // RISC-V 常见指令有 16 位和 32 位两种长度。 在本实验范围内，通过指令最低两位判断应该让 epc 增加 2 还是 4。
     uint16_t instruction = *(const volatile uint16_t *)tf->epc;
-    tf->epc += (instruction & 0x3) == 0x3 ? 4 : 2;
+    if ((instruction & 0x3) == 0x3) {
+        tf->epc += 4;
+    } else {
+        tf->epc += 2;
+    }
 }
 
 
