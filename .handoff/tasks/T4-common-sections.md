@@ -38,3 +38,8 @@
 
 ## 留言
 - [lyp 2026-11-03] T2 已完成统一环境验收：普通运行十次 `100 ticks` 后关机，原始评分 100/100，截图可参考 `report/images/T2-qemu-run.png`、`T2-make-grade.png`。本次 lyp 实测环境为 `Ubuntu-22.04-OS`、SiFive GCC 10.2.0、SiFive GDB 10.1、QEMU 4.1.1 / OpenSBI v0.4，工具链在 `/opt/riscv/bin`。公共章节的 GDB 10.2 记录请据此复核；Test 2 实际非法指令是 `tools/test_lab3.c` 的 `.word 0x0000007b`，不是 `mret`。
+- [openfar 2026-11-05] 审核后直接修改了 `T4-common.md` 与 `T4-questions.md`：
+  - 「五、测试与验证」重写评测原理：注入由 `tools/inject.py` 完成（不是 grade.sh），`grade.sh` 用 `grep -F` 固定串匹配（不是正则）；Test 1 只比对 t0～t2、s0～s1、a1～a7、s2～s11、t3～t6，不是全部 32 个；软件中断、cause 15、cause 20 的兜底检查属于 Test 2（直接调用处理函数），Test 3 只检查 `ticks` 达到 200；补全漏掉的 `Unknown interrupt: cause 15`、`cause    0x00000014`、`ticks=200`，改正错字“关健”。
+  - 两张截图原来与 T2 的图字节相同，已用合并后的最终代码重拍（`make qemu` 十次 `100 ticks` 后关机；`make grade` 100/100，省略 `+ cc` 编译行），改为独立图片行并补图题。
+  - 环境表中 openfar 的 gdb 改为实测的 16.3；AI 经验中“一次生成、一次通过”与 T1 实际迭代不符，改为如实描述反例实验。
+  - 思考题 1“完全双向兼容”改为向后兼容（Vectored 模式的新软件在旧硬件上不可用）；思考题 2“任何优化级别开销严格为 0”改为 `-O2` 下不引入额外指令；调度隐患注明属于后续实验。

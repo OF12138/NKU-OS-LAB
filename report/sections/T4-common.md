@@ -28,11 +28,11 @@
 
 | 成员 | 宿主系统 | QEMU 版本 | 交叉编译工具链 | 调试器版本 |
 | :--- | :--- | :--- | :--- | :--- |
-| 2411264-张远 | WSL2 Ubuntu 24.04 | 4.1.1（OpenSBI v0.4） | riscv64-unknown-elf-gcc 15.1.0 | riscv64-unknown-elf-gdb 15.1 |
+| 2411264-张远 | WSL2 Ubuntu 24.04 | 4.1.1（OpenSBI v0.4） | riscv64-unknown-elf-gcc 15.1.0 | riscv64-unknown-elf-gdb 16.3 |
 | 2414099-李云鹏 | WSL2 Ubuntu 22.04 | 4.1.1（OpenSBI v0.4） | SiFive riscv64-unknown-elf-gcc 10.2.0 | riscv64-unknown-elf-gdb 10.1 |
 | 2413074-刘昀皓 | WSL2 Ubuntu 24.04 | 4.1.1（OpenSBI v0.4） | riscv64-unknown-elf-gcc 15.1.0 | riscv64-unknown-elf-gdb 16.3 |
 
-全组成员统一在本地通过设置 `export QEMU=$HOME/Environment/qemu-4.1.1/riscv64-softmmu/qemu-system-riscv64` 确保 `Makefile` 与评测脚本 `tools/grade.sh` 调用完全一致的底层模拟器。
+全组成员统一在本地设置 `export QEMU=$HOME/Environment/qemu-4.1.1/riscv64-softmmu/qemu-system-riscv64`：`make qemu` 直接使用它，`make grade` 也会把它所在的目录放到 `tools/grade.sh` 的 PATH 最前面，保证两者用的是同一个模拟器。
 
 ## AI 工具与底层模型
 
@@ -50,13 +50,15 @@
 
 ### 1. 测试设计与评测原理
 
-Lab 3 的自动化评测系统由 `code/Makefile` 和 `tools/grade.sh` 驱动，评测核心机制如下：
-1. **测试注入机制**：`grade.sh` 将 `tools/test_lab3.c` 动态注入到内核初始化流程 `kern_init()` 中，位置紧跟在第二次 `idt_init()`、`clock_init()` 以及 `intr_enable()` 之后；
-2. **多场景异常与中断触发**：
-   - **Test 1（断点异常与寄存器现场恢复）**：通过汇编指令 `ebreak` 触发断点异常，在异常处理例程返回后逐一比对全部 32 个通用寄存器是否与异常触发前完全一致，严格验证 `RESTORE_ALL` 对寄存器现场的保真度；
-   - **Test 2（非法指令异常与返回地址推进）**：通过执行目标平台未定义的 4 字节机器指令（`asm volatile(".word 0x0000007b")`）触发非法指令异常，检验 `exception_handler` 是否能正确捕获并根据 32 位指令编码将 `tf->epc` 正确推进 4 字节，以跳过该非法指令并安全返回原执行流；
-   - **Test 3（软件中断与时钟中断驱动）**：触发管理态软件中断，并开启时钟中断持续运行，检验内核是否能够每 100 次时钟滴答稳定输出 `100 ticks`。
-3. **输出关键字正则匹配**：评测脚本通过比对 QEMU 控制台输出中的关健标志字符串（`Breakpoint at`、`Illegal instruction at`、`Supervisor software interrupt`、`100 ticks`）判定各测试用例是否通过。
+`make grade` 先把整个 `code/` 复制到临时目录，由 `tools/inject.py` 把 `tools/test_lab3.c` 和 `tools/test_lab3_context.S` 加入内核，并在 `kern_init()` 中插入三处测试调用：第二个 `idt_init()` 之后、`clock_init()` 之后、`intr_enable()` 之后。随后 `tools/grade.sh` 分别以 `GRADE_LAB3_CONTEXT`、`GRADE_LAB3_ILLEGAL`、`GRADE_LAB3_TIMER` 三个宏重新编译，各启动一次 QEMU，用 `grep -F` 在串口输出中查找固定字符串（不是正则匹配）：
+
+| 测试 | 分值 | 触发方式与检查内容 | 必须出现的字符串 |
+| :--- | :---: | :--- | :--- |
+| Test 1：Trap 入口、寄存器恢复与断点返回 | 35 | `test_lab3_context.S` 先给 t0～t2、s0～s1、a1～a7、s2～s11、t3～t6 写入不同的已知值，执行 `ebreak`，返回后逐个比对（不比对 ra、sp、gp、tp 和用作比较临时寄存器的 a0） | `[Test 1] Trap entry and breakpoint return: PASS`、`Breakpoint at` |
+| Test 2：非法指令返回与处理函数兜底 | 25 | 执行 4 字节的 `.word 0x0000007b`（目标平台上未定义的自定义操作码），返回后继续运行；再直接调用处理函数，传入 S 态软件中断、无最高位的原因码 15 和异常原因码 20 三个构造的 Trap frame，检查各兜底分支 | `[Test 2] Illegal instruction return: PASS`、`Illegal instruction at`、`Supervisor software interrupt`、`Unknown interrupt: cause 15`、`cause    0x00000014` |
+| Test 3：时钟中断的重装与重复返回 | 40 | `clock_init()` 之后检查 `ticks` 仍为 0；`intr_enable()` 之后循环等待 `ticks` 达到 200 | `[Test 3] Sustained supervisor timer: PASS`、`100 ticks`、`ticks=200` |
+
+Test 1 只有在 `RESTORE_ALL` 正确恢复全部寄存器、并且 `sepc` 被推进到 `ebreak` 之后时才会通过；Test 3 要求时钟中断每次都重新设定下一次事件，而且关机阈值要大于 200 ticks，否则测试来不及输出结果。
 
 ### 2. 测试执行截图
 
@@ -66,9 +68,11 @@ Lab 3 的自动化评测系统由 `code/Makefile` 和 `tools/grade.sh` 驱动，
 make qemu
 ```
 
-内核启动后正确完成 DTB 初始化与物理内存探测，并在配置时钟中断后稳定进入周期性时钟中断循环，每 100 个 tick 输出一次 `100 ticks`，累计输出 10 次后触发 SBI 正常关机：
+内核启动后完成设备树解析和物理内存初始化，设置时钟中断后每 100 个 tick 输出一次 `100 ticks`，输出 10 次后调用 `sbi_shutdown()` 关机，QEMU 随之退出，回到 shell 提示符：
 
-<p align="center"><img src="../images/T4-qemu-run.png" alt="QEMU 4.1.1 内核日常运行与时钟中断输出" width="680"></p>
+![QEMU 4.1.1 内核日常运行与时钟中断输出](../images/T4-qemu-run.png)
+
+<p align="center">图 5-1　make qemu 的运行结果（最终代码，QEMU 4.1.1）</p>
 
 #### （2）自动化评测输出（`make grade`）
 
@@ -76,9 +80,11 @@ make qemu
 make grade
 ```
 
-在统一 QEMU 4.1.1 环境下执行自动化评测，3 项评测（断点异常与寄存器现场恢复 35 分、非法指令 EPC 推进与返回 25 分、时钟中断重装填与重复 Trap 响应 40 分）全部通过，满分通过测试：
+在统一的 QEMU 4.1.1 环境下，三项测试全部通过，总分 100/100（截图中省略了每项测试重新编译时的 `+ cc` 行）：
 
-<p align="center"><img src="../images/T4-make-grade.png" alt="Lab 3 自动化评测 100/100 满分结果" width="680"></p>
+![Lab 3 自动化评测 100/100](../images/T4-make-grade.png)
+
+<p align="center">图 5-2　make grade 的评测结果（最终代码）</p>
 
 ---
 
@@ -94,7 +100,7 @@ make grade
 - 异常返回时，`tf->epc` 的修改必须显式写回 `sepc` 寄存器，否则 `sret` 之后会原地重复触发异常导致死循环；
 - 汇编中的 CSR 别名随着工具链演进而变化（如旧版本工具链使用的 `sbadaddr` 与现代 binutils 要求的 `stval`）。
 
-如果向 AI 提出泛化的自然语言需求，大语言模型极易产生由于忽视底层约束而编写出“看似逻辑正确却导致系统 Hard Panic”的代码。而通过严格遵守 **[PROMPT] - [RELY] - [GUARANTEE] - [SPECIFICATION]** 四段式模板，我们在 `[RELY]` 中原汁原味地提供底层结构体定义和依赖代码，在 `[SPECIFICATION]` 中明确前置条件、后置条件和反例边界（Case 1/2/3），能够将模型的工程生成准确率提升到极高水准，真正实现“一次生成、一次通过编译与验收”。
+如果向 AI 提出泛化的自然语言需求，大语言模型极易产生由于忽视底层约束而编写出“看似逻辑正确却导致系统 Hard Panic”的代码。而通过严格遵守 **[PROMPT] - [RELY] - [GUARANTEE] - [SPECIFICATION]** 四段式模板，我们在 `[RELY]` 中原汁原味地提供底层结构体定义和依赖代码，在 `[SPECIFICATION]` 中明确前置条件、后置条件和反例边界（Case 1/2/3），明显减少了模型在这些细节上出错的机会。但提示词本身也是迭代出来的：功能模块一中，我们故意构造了“最先恢复 sp”“不写回 sepc”两个反例，发现前者 `make qemu` 看起来完全正常、只有 `make grade` 才能发现，于是把这两条约束和验收标准明确写进了 [SPECIFICATION]。
 
 ### 2. 状态解耦与轻量级协作看板（`.handoff/` 机制）的协同效能
 在多人多 Agent 协作流中，三位成员分别使用不同的 Agent 客户端（Claude Code、Codex、Antigravity），各 Agent 拥有独立的记忆上下文与操作节奏。通过在 Git 仓库内引入统一的 `.handoff/` 协作状态目录：
