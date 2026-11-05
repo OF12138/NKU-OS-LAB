@@ -2,7 +2,15 @@
 #define __LIBS_ATOMIC_H__
 
 /* Atomic operations that C can't guarantee us. Useful for resource counting
- * etc.. */
+ * etc.. 
+ 
+ 定义了一些对一个二进制位进行读写的原子操作，确保相关操作不被中断打断。
+ 包括set_bit()设置某个二进制位的值为1, 
+ change_bit()给某个二进制位取反，
+ test_bit()返回某个二进制位的值。
+ */
+
+
 
 static inline void set_bit(int nr, volatile void *addr)
     __attribute__((always_inline));

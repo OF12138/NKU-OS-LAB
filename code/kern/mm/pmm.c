@@ -53,30 +53,37 @@ static void init_memmap(struct Page *base, size_t n) {
 
 // alloc_pages - call pmm->alloc_pages to allocate a continuous n*PAGESIZE
 // memory
-struct Page *alloc_pages(size_t n) {
+struct Page *alloc_pages(size_t n) 
+{
     struct Page *page = NULL;
     bool intr_flag;
-    local_intr_save(intr_flag);
+    local_intr_save(intr_flag); //先关中断
+
     {
         page = pmm_manager->alloc_pages(n);
     }
-    local_intr_restore(intr_flag);
+
+    local_intr_restore(intr_flag); //再开中断
     return page;
 }
 
 // free_pages - call pmm->free_pages to free a continuous n*PAGESIZE memory
-void free_pages(struct Page *base, size_t n) {
+void free_pages(struct Page *base, size_t n) 
+{
     bool intr_flag;
     local_intr_save(intr_flag);
+
     {
         pmm_manager->free_pages(base, n);
     }
+
     local_intr_restore(intr_flag);
 }
 
 // nr_free_pages - call pmm->nr_free_pages to get the size (nr*PAGESIZE)
 // of current free memory
-size_t nr_free_pages(void) {
+size_t nr_free_pages(void) 
+{
     size_t ret;
     bool intr_flag;
     local_intr_save(intr_flag);

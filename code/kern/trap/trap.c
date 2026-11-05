@@ -9,9 +9,17 @@
 #include <stdio.h>
 #include <trap.h>
 
+/*
+ 分发不同类型的中断给不同的handler, 完成上下文切换之后对中断的具体处理，
+ 例如外设中断要处理外设发来的信息，时钟中断要触发特定的事件。
+ 中断处理初始化的函数也在这里，主要是把中断向量表(stvec)设置成所有中断都要跳到trapentry.S进行处理。
+*/
+
+
 #define TICK_NUM 100
 
-static void print_ticks() {
+static void print_ticks() 
+{
     cprintf("%d ticks\n", TICK_NUM);
 #ifdef DEBUG_GRADE
     cprintf("End of Test.\n");
@@ -19,24 +27,33 @@ static void print_ticks() {
 #endif
 }
 
-/* idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S
+/* 
+idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S
  */
-void idt_init(void) {
+void idt_init(void) 
+{
 
-    extern void __alltraps(void);
+    extern void __alltraps(void); //extern void __alltraps(void); 是在 C 中声明一个在其他地方定义的入口符号，对应 trapentry.S 里的标签 , 链接器会把 C 中对 __alltraps 的引用，与汇编中定义的地址关联起
+
+    //约定：若中断前处于S态，sscratch为0
+    //若中断前处于U态，sscratch存储内核栈地址
+    //那么之后就可以通过sscratch的数值判断是内核态产生的中断还是用户态产生的中断
+    //我们现在是内核态所以给sscratch置零
     /* Set sup0 scratch register to 0, indicating to exception vector
        that we are presently executing in the kernel */
     write_csr(sscratch, 0);
     /* Set the exception vector address */
-    write_csr(stvec, &__alltraps);
+    write_csr(stvec, &__alltraps); ////我们保证__alltraps的地址是四字节对齐的，将__alltraps这个符号的地址直接写到stvec寄存器
 }
 
 /* trap_in_kernel - test if trap happened in kernel */
-bool trap_in_kernel(struct trapframe *tf) {
+bool trap_in_kernel(struct trapframe *tf) 
+{
     return (tf->status & SSTATUS_SPP) != 0;
 }
 
-void print_trapframe(struct trapframe *tf) {
+void print_trapframe(struct trapframe *tf) 
+{
     cprintf("trapframe at %p\n", tf);
     print_regs(&tf->gpr);
     cprintf("  status   0x%08x\n", tf->status);
@@ -45,7 +62,8 @@ void print_trapframe(struct trapframe *tf) {
     cprintf("  cause    0x%08x\n", tf->cause);
 }
 
-void print_regs(struct pushregs *gpr) {
+void print_regs(struct pushregs *gpr) 
+{
     cprintf("  zero     0x%08x\n", gpr->zero);
     cprintf("  ra       0x%08x\n", gpr->ra);
     cprintf("  sp       0x%08x\n", gpr->sp);
@@ -181,11 +199,16 @@ void exception_handler(struct trapframe *tf) {
 }
 
 
-static inline void trap_dispatch(struct trapframe *tf) {
-    if ((intptr_t)tf->cause < 0) {
+static inline void trap_dispatch(struct trapframe *tf) 
+{
+    //trap.c的中断处理函数trap, 实际上把中断处理,异常处理的工作分发给了interrupt_handler()，exception_handler(), 这些函数再根据中断或异常的不同类型来处理
+    if ((intptr_t)tf->cause < 0) 
+    {
         // interrupts
         interrupt_handler(tf);
-    } else {
+    } 
+    else 
+    {
         // exceptions
         exception_handler(tf);
     }
@@ -197,7 +220,14 @@ static inline void trap_dispatch(struct trapframe *tf) {
  * the code in kern/trap/trapentry.S restores the old CPU state saved in the
  * trapframe and then uses the iret instruction to return from the exception.
  * */
-void trap(struct trapframe *tf) {
+void trap(struct trapframe *tf) 
+{
     // dispatch based on what type of trap occurred
     trap_dispatch(tf);
 }
+
+/*
+structure of scause. 
+// ![image](../../../.vscode/image-comment/Screenshot-2026-10-29-103218.png)
+
+*/

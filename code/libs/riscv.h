@@ -45,7 +45,7 @@
 #define MSTATUS64_SD        0x8000000000000000
 
 #define SSTATUS_UIE         0x00000001
-#define SSTATUS_SIE         0x00000002
+#define SSTATUS_SIE         0x00000002 //数值为0的时候，如果当程序在S态运行，将禁用全部中断。（对于在U态运行的程序，SIE这个二进制位的数值没有任何意义
 #define SSTATUS_UPIE        0x00000010
 #define SSTATUS_SPIE        0x00000020
 #define SSTATUS_SPP         0x00000100
