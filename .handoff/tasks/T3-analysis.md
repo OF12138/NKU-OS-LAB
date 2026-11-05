@@ -1,5 +1,5 @@
 # T3 整体逻辑分析；知识点与 OS 原理对应
-- 负责人：openfar（整体逻辑）、lyp（知识点）    DDL：11-05    状态：进行中    依赖：T1、T2
+- 负责人：openfar（整体逻辑）、lyp（知识点）    DDL：11-05    状态：完成    依赖：T1、T2
 - 主要文件：report/sections/T3-logic.md（openfar）, report/sections/T3-knowledge.md（lyp）
 
 ## 要求
@@ -9,10 +9,12 @@
   - lyp：按模板「六、对操作系统的理解」两小点写。
 
 ## 当前进度 / 下一步
+- [openfar 11-05] 整体逻辑完成：`report/sections/T3-logic.md`、`T3-logic.prompt.md`，流程图 `report/images/T3-trap-flow.png`（`.claude/tools/lab3-diagrams.py` 生成）。lyp 的知识点部分 11-03 已交。两部分均已合入 report.md。
 
 ## 关键决策与结论
 
 ## 验证结果
+- `check-rely.py` 全部通过；文中结论已逐条对照 `init.c`、`trap.c`、`trapentry.S`、`clock.c`、`sync.h`、`inject.py`。
 
 ## 迭代素材
 
