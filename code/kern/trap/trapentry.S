@@ -24,8 +24,9 @@
     #也就是保存之前写到sscratch里的sp的值
 
     # save x registers
-    STORE x0, 0*REGBYTES(sp)
+    STORE x0, 0*REGBYTES(sp) # 滚木说是，为了对齐 struct pushregs. 
     STORE x1, 1*REGBYTES(sp)
+
     STORE x3, 3*REGBYTES(sp)
     STORE x4, 4*REGBYTES(sp)
     STORE x5, 5*REGBYTES(sp)
@@ -59,8 +60,13 @@
     # get sr, epc, badvaddr, cause
     # Set sscratch register to 0, so that if a recursive exception
     # occurs, the exception vector knows it came from the kernel
-     # RISCV不能直接从CSR写到内存, 需要csrr把CSR读取到通用寄存器，再从通用寄存器STORE到内存
-    csrrw s0, sscratch, x0 //write the old sp in the sscratch to s0 and then clear sscratch to zero. 
+    # RISCV不能直接从CSR写到内存, 需要csrr把CSR读取到通用寄存器，再从通用寄存器STORE到内存
+
+# 语法： 实际上都是伪指令
+# csrr rd, csr 是 CSR Read:把 CSR 的值读进通用寄存器 rd。
+# csrw csr, rs 是 CSR Write:把通用寄存器 rs 的值写进 CSR。
+
+    csrrw s0, sscratch, x0 //read the old sp in the sscratch to s0 and then clear sscratch to zero. 
     csrr s1, sstatus #存 S 态相关的 CPU 状态
     csrr s2, sepc
     csrr s3, sbadaddr #与异常有关的地址或信息 （旧名称，当前规范名称为 stval；例如缺页时可记录出错的虚拟地址）
@@ -73,21 +79,33 @@
     STORE s4, 35*REGBYTES(sp)
     .endm #汇编宏定义结束
 
+
+
+# ====================================================================
+
+
     .macro RESTORE_ALL
 
     #lab3 function1 2411264
 
     # 先用 s1、s2 作中转写回 sstatus 和 sepc（sret 依据它们返回），s1、s2 本身随后再恢复
     # badvaddr、cause 只是给 trap() 看的现场记录，sret 不读它们，不需要写回
+    # 中转是因为 CSR 特殊，这些指令的操作数一边是 CSR,另一边只能是通用寄存器(或 5 位立即数)
     LOAD s1, 32*REGBYTES(sp)
     LOAD s2, 33*REGBYTES(sp)
     csrw sstatus, s1
     csrw sepc, s2
+# sstatus 和 sepc 必须写回,sret 要用它们:
+# sepc 决定返回到哪,
+# sstatus 里的 SPP/SPIE 决定返回的特权级和中断使能。
+# scause 和 sbadaddr 不用写回。它们是硬件在 trap 发生时填的"事故报告",只给 trap() 看。sret 不读它们,下次 trap 时硬件会重新填。
+# sscratch 不用恢复。在内核里它本来就是 0,SAVE_ALL 已经把它清零了
 
     #根据中断或者异常的类型重新设置sepc，确保程序能够从正确的地址继续执行。对于系统调用，这通常是 ecall指令的下一条指令地址（即sepc + 4）；对于中断，这是被中断打断的指令地址（即sepc）；对于进程切换，这是新进程的起始地址。然后，将sstatus.SPP设置为 0，表示要返回到 U 模式。
 
     # 按 SAVE_ALL 的布局恢复通用寄存器，x0 恒为 0 不用恢复
     LOAD x1, 1*REGBYTES(sp)
+
     LOAD x3, 3*REGBYTES(sp)
     LOAD x4, 4*REGBYTES(sp)
     LOAD x5, 5*REGBYTES(sp)
@@ -124,7 +142,7 @@
     .endm
 
 
-
+# ===========================================================================
 
 
     .globl __alltraps
@@ -136,6 +154,7 @@ __alltraps:
     # 此时 sp 指向 Trap frame 的起始地址；按调用约定第一个参数放在 a0
     move  a0, sp  #第一个参数 = 当前 Trap frame 的地址
     jal trap #就是调用 trap.c 中的 trap()
+    #trap.c 里的 void trap(struct trapframe *tf) 编译后会导出同名全局符号 trap(C 语言不改名,C++ 才会)。链接时链接器把这两个 trap 对上并填好跳转偏移。
     # sp should be the same as before "jal trap"
 
     .globl __trapret

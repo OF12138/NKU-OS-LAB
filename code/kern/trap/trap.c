@@ -39,6 +39,7 @@ void idt_init(void)
     //若中断前处于U态，sscratch存储内核栈地址
     //那么之后就可以通过sscratch的数值判断是内核态产生的中断还是用户态产生的中断
     //我们现在是内核态所以给sscratch置零
+
     /* Set sup0 scratch register to 0, indicating to exception vector
        that we are presently executing in the kernel */
     write_csr(sscratch, 0);
@@ -192,7 +193,7 @@ void exception_handler(struct trapframe *tf) {
     // RISC-V 常见指令有 16 位和 32 位两种长度。 在本实验范围内，通过指令最低两位判断应该让 epc 增加 2 还是 4。
     uint16_t instruction = *(const volatile uint16_t *)tf->epc;
     if ((instruction & 0x3) == 0x3) {
-        tf->epc += 4;
+        tf->epc += 4; // 4 bytes. 
     } else {
         tf->epc += 2;
     }
@@ -202,7 +203,7 @@ void exception_handler(struct trapframe *tf) {
 static inline void trap_dispatch(struct trapframe *tf) 
 {
     //trap.c的中断处理函数trap, 实际上把中断处理,异常处理的工作分发给了interrupt_handler()，exception_handler(), 这些函数再根据中断或异常的不同类型来处理
-    if ((intptr_t)tf->cause < 0) 
+    if ((intptr_t)tf->cause < 0) //just one trick : 把无符号数当成有符号数来看，实际上就是看最高位。
     {
         // interrupts
         interrupt_handler(tf);
@@ -227,6 +228,8 @@ void trap(struct trapframe *tf)
 }
 
 /*
+// ![image](../../../.vscode/image-comment/Screenshot-2026-11-05-184130.png)
+
 structure of scause. 
 // ![image](../../../.vscode/image-comment/Screenshot-2026-10-29-103218.png)
 

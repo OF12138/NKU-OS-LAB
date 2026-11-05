@@ -8,6 +8,14 @@
  包括set_bit()设置某个二进制位的值为1, 
  change_bit()给某个二进制位取反，
  test_bit()返回某个二进制位的值。
+
+ __attribute__ 的语法
+
+__attribute__((...)) 是 GCC 的扩展语法,用于给函数、变量、类型附加编译器特性,双层括号是固定写法。
+
+always_inline:要求编译器必须内联该函数,即使在 -O0 下也如此,不生成函数调用。
+它写在声明末尾,所以这几行是先声明、后定义:static inline void set_bit(...) __attribute__((always_inline)); 只是前向声明带上属性,后面才给出函数体。
+其他常见用法有 __attribute__((aligned(4)))、packed、noreturn、unused。
  */
 
 
