@@ -9,12 +9,12 @@
 | T0 | 环境与框架：填入 lab2 代码、grade 使用 QEMU 4.1.1 | openfar | 10-29 | 完成 | code/kern/mm/pmm.c, code/kern/mm/best_fit_pmm.c, code/Makefile, code/libs/riscv.h |
 | T1 | 功能模块一：RESTORE_ALL 与 `__alltraps`（含 GDB 验证 Trap 进出） | openfar | 11-01 | 完成 | code/kern/trap/trapentry.S, report/sections/T1-* |
 | T2 | 功能模块二：interrupt_handler 与 exception_handler（含 GDB 验证 epc 更新） | lyp | 11-02 | 完成 | code/kern/trap/trap.c, report/sections/T2-* |
-| T3 | 整体逻辑分析（openfar）；知识点与 OS 原理对应（lyp） | openfar, lyp | 11-05 | 进行中 | report/sections/T3-* |
+| T3 | 整体逻辑分析（openfar）；知识点与 OS 原理对应（lyp） | openfar, lyp | 11-05 | 完成 | report/sections/T3-* |
 | T4 | 指导书思考题；实验目的、实验环境、测试与验证、实验总结初稿 | nagilix | 思考题 11-03，公共章节 11-06 | 完成 | report/sections/T4-*, report/images/T4-* |
-| T5 | 集成：report.md、prompt.md、最终 make grade | openfar | 11-07 | 待开始 | report/report.md, report/prompt.md |
+| T5 | 集成：report.md、prompt.md、最终 make grade | openfar | 11-07 | 完成 | report/report.md, report/prompt.md |
 
 ## 集成状态
-- make qemu ⬜   make grade ⬜   report.md 已合并 ⬜   prompt.md 已合并 ⬜
+- make qemu ✅   make grade ✅（100/100，11-05）   report.md 已合并 ✅   prompt.md 已合并 ✅
 
 ## 全组须知
 - 环境（T0，10-28）：设置 `QEMU=<4.1.1 的完整路径>` 后，`make qemu` 和 `make grade` 都会用 4.1.1（Makefile 会把它的目录放到 grade.sh 的 PATH 最前面）；不设时 grade 用 PATH 里的 qemu，WSL 自带的 8.2.2 启动不了本框架。
