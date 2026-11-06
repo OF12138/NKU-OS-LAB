@@ -1,7 +1,8 @@
-# <center>操作系统lab_实验报告</center>
+# <center>操作系统 lab3 实验报告</center>
 
-<h5 align="center">实验名称：Lab 3: 断，都可以断（中断与异常处理）  完成日期：2026-11-05</h5 align="center">
+<h5 align="center">实验名称：中断与异常处理  完成日期：2026-11-05</h5 align="center">
 <h5 align="center">小组成员：2411264-张远、2414099-李云鹏、2413074-刘昀皓</h5 align="center">
+
 
 
 
@@ -9,30 +10,24 @@
 
 | 成员 | 负责的练习/模块/代码/报告 |
 |------|----------------|
-| 2411264-张远 | 环境与框架（补齐 lab2 代码、统一 QEMU 4.1.1）、功能模块一（RESTORE_ALL 与 `__alltraps`）、实验整体逻辑分析、报告集成与最终评测 |
+| 2411264-张远 | 功能模块一（RESTORE_ALL 与 `__alltraps`）、实验整体逻辑分析、报告集成与最终评测 |
 | 2414099-李云鹏 | 功能模块二（interrupt_handler 与 exception_handler）、对操作系统的理解 |
 | 2413074-刘昀皓 | 练习：指导书思考题、实验目的、实验环境、测试与验证、AI 协作开发的经验 |
+
 
 
 # 一、实验目的
 
 1. **深入理解 RISC-V 陷阱（Trap）机制与特权级架构**：
    - 理解异常（Exception）与中断（Interrupt）在触发源、同步性与处理方式上的核心差异；
-   - 掌握 RISC-V 特权级架构下陷阱处理的核心控制与状态寄存器（CSR：`sstatus`、`stvec`、`sepc`、`scause`、`stval`、`sie`、`sip`）的功能定义与协作关系；
-   - 掌握当 Trap 发生时与执行 `sret` 返回时，RISC-V 处理器硬件自动完成的原子操作序列（特权级切换、PC 保护与恢复、中断使能位状态翻转）。
-
+   - 掌握 RISC-V 特权级架构下陷阱处理的核心控制与状态寄存器（CSR：`sstatus`、`stvec`、`sepc`、`scause`、`stval`、`sie`）的功能定义与协作关系；
 2. **掌握操作系统内核的中断上下文保存与恢复机制**：
    - 理解并掌握在 `trapentry.S` 中通过 `__alltraps` 汇编例程构建中断上下文的完整流程，理解通过 `SAVE_ALL` 在内核栈上分配空间并按 `struct trapframe` 结构保存全部 32 个通用寄存器和关键 CSR 的底层实现；
    - 深入掌握 `RESTORE_ALL` 恢复现场的精细约束（如栈指针 `sp` 的恢复顺序、`sstatus` 与 `sepc` 的写回逻辑），理解 `sret` 指令安全返回原执行流的完整闭环。
-
 3. **掌握操作系统内核的中断与异常分发处理机制**：
    - 掌握在 `trap.c` 中根据 `scause` 寄存器的最高位（Interrupt 标志位）区分中断与异常的双路分发架构；
    - 掌握时钟中断（Timer Interrupt）的响应与处理逻辑，通过 SBI 调用周期性设置下一次定时器事件，维护全局时钟滴答计数（`ticks`），为后续 Lab 的进程时间片调度奠定基础；
    - 掌握断点异常（`ebreak`）与非法指令异常的捕获与响应流程，掌握在软件层面推进 `tf->epc` 返回地址以跨越触发异常指令的核心方法。
-
-4. **实践工程化与规范化的 AI 协同内核开发**：
-   - 实践采用结构化的四段式提示词（[PROMPT], [RELY], [GUARANTEE], [SPECIFICATION]）精准约束与引导大语言模型生成高质量的底层系统汇编与 C 代码；
-   - 在多成员、多 Agent 工具（Claude Code、Codex、Antigravity）并行协作的场景下，通过 `.handoff/` 状态看板实现任务解耦、接口契约明确与异步高效交付。
 
 
 
@@ -40,7 +35,7 @@
 
 ## 软件与运行环境
 
-本实验严格统一使用指导书推荐的 **QEMU 4.1.1**（内置 OpenSBI v0.4），该版本对于基于 `-device loader` 加载内核到 `0x80200000` 的启动方式具有确定性支持，排除了新版 QEMU/OpenSBI 因固件动态重定向导致内核无法启动的兼容性问题。
+本实验统一使用指导书推荐的 **QEMU 4.1.1**（内置 OpenSBI v0.4）。
 
 | 成员 | 宿主系统 | QEMU 版本 | 交叉编译工具链 | 调试器版本 |
 | :--- | :--- | :--- | :--- | :--- |
@@ -48,17 +43,15 @@
 | 2414099-李云鹏 | WSL2 Ubuntu 22.04 | 4.1.1（OpenSBI v0.4） | SiFive riscv64-unknown-elf-gcc 10.2.0 | riscv64-unknown-elf-gdb 10.1 |
 | 2413074-刘昀皓 | WSL2 Ubuntu 24.04 | 4.1.1（OpenSBI v0.4） | riscv64-unknown-elf-gcc 15.1.0 | riscv64-unknown-elf-gdb 16.3 |
 
-全组成员统一在本地设置 `export QEMU=$HOME/Environment/qemu-4.1.1/riscv64-softmmu/qemu-system-riscv64`：`make qemu` 直接使用它，`make grade` 也会把它所在的目录放到 `tools/grade.sh` 的 PATH 最前面，保证两者用的是同一个模拟器。
-
 ## AI 工具与底层模型
 
 全组采用多工具、多模型的异构 Agent 协作模式，各成员分工与所用工具链配置如下：
 
-| 成员 | 负责模块 | AI 编程工具 | 底层模型 | 备注 / 特殊配置 |
-| :--- | :--- | :--- | :--- | :--- |
-| 2411264-张远 | T0, T1, T3, T5 | Claude Code（终端 Agent） | Claude Opus 5.5 | 负责环境兼容性适配、功能模块一（trapentry.S）、整体逻辑分析与报告集成 |
-| 2414099-李云鹏 | T2, T3 | Codex（终端 Agent） | gpt-6.1-sol | 负责功能模块二（trap.c 异常/中断分发）与 OS 原理对照分析 |
-| 2413074-刘昀皓 | T4 | Antigravity（终端 Agent） | Gemini 4 Argon / Claude Opus 5.5 | 负责正文思考题深度剖析、公共章节初稿撰写与测试集成验证 |
+| 成员 | 负责模块 | AI 编程工具 | 底层模型 |
+| :--- | :--- | :--- | :--- |
+| 2411264-张远 | T0, T1, T3, T5 | Claude Code（终端 Agent） | Claude Opus 5.5 |
+| 2414099-李云鹏 | T2, T3 | Codex（终端 Agent） | gpt-6.1-sol |
+| 2413074-刘昀皓 | T4 | Antigravity（终端 Agent） | Gemini 4 Argon / Claude Opus 5.5 |
 
 
 
@@ -70,7 +63,9 @@
 
 Lab3 的主题是**中断与异常**。lab2 结束时，内核能管理物理内存，但执行流完全是线性的：从 `kern_init` 一路执行到 `while (1)`，CPU 只要遇到异常就无处可去，外部事件（例如时钟到期）也没有办法通知内核。本章要解决的问题是：**当 CPU 的正常执行流被打断时，怎样让控制权安全地交给内核，处理完之后再原样交还回去。**
 
-我们把本章概括为一句话：**围绕一次 Trap 的“进入—处理—返回”，把硬件做的、汇编做的和 C 做的三段工作接成一个闭环。**图 1 是这个闭环的全貌：
+我们把本章概括为一句话：**围绕一次 Trap 的“进入—处理—返回”，把硬件做的、汇编做的和 C 做的三段工作接成一个闭环。**
+
+
 
 ![Trap 处理全流程](./images/T3-trap-flow.png)
 
@@ -81,10 +76,6 @@ Lab3 的主题是**中断与异常**。lab2 结束时，内核能管理物理内
 - **硬件**只做最少的事：记下“从哪里来”（`sepc`）和“为什么来”（`scause`、`stval`），在 `sstatus` 中记下原特权级并关中断，然后跳到 `stvec`。它**不会**替内核保存任何通用寄存器。
 - **汇编（`trapentry.S`）**负责通用寄存器和 CSR 的保存与恢复，把现场整理成 C 能直接访问的 `struct trapframe`，返回时再按同一布局写回，用 `sret` 回到 `sepc`。
 - **C（`trap.c`）**只看 Trap frame：根据 `cause` 区分中断和异常，再按具体原因处理；需要改变返回位置时只改 `tf->epc`。
-
-贯穿全章的还有一条副线：**Trap frame 是汇编和 C 之间唯一的契约。**`SAVE_ALL` 写入的槽位顺序必须与 `struct trapframe` 的字段一一对应，`RESTORE_ALL` 必须按同一布局读回；C 代码对帧的修改（例如推进 `epc`）只有经 `RESTORE_ALL` 写回 CSR 才会生效。功能模块一和功能模块二分别站在这个契约的两侧，T1 的反例实验（不写回 `sepc` 时断点和非法指令死循环）就是契约被破坏的样子。
-
-
 
 ## 3.2 功能的逐步实现
 
@@ -98,15 +89,11 @@ Lab3 的主题是**中断与异常**。lab2 结束时，内核能管理物理内
 | 5 | 处理中断：时钟中断的周期性重装、计数与关机，其他中断分类输出 | `trap.c` 的 `interrupt_handler`、`kern/driver/clock.c` | 功能模块二 |
 | 6 | 理解中断带来的并发问题：`stvec` 模式编码、关中断保护临界区 | `kern/sync/sync.h`、`pmm.c` | 练习：指导书思考题 |
 
-0. **先补齐 lab2 的代码。**lab3 的 `kern_init` 在开中断之前仍要调用 `pmm_init()`，所以物理内存管理必须先能工作。lab3 框架中没有 lab2 的 `PHYSICAL_MEMORY_END`，`page_init` 改用 `KERNTOP - va_pa_offset` 作为上界；另外新版 binutils 不认识 `SAVE_ALL` 中的旧 CSR 名 `sbadaddr`，我们在 `riscv.h` 中只对汇编文件把它定义为 `stval`，保证 `SAVE_ALL` 原样不改也能编译。
-1. **然后让 Trap 有地方可去。**`idt_init()` 把 `sscratch` 清零（约定 0 表示 Trap 来自内核态），再把 `stvec` 设为 `__alltraps`。`__alltraps` 用 `.align(2)` 保证 4 字节对齐，`stvec` 的低两位为 0，即 Direct 模式，所有 Trap 进入同一个入口。这一步排在最前面，是因为在它之前发生的任何 Trap 都会跳到不可预期的地址。`kern_init` 中 `idt_init()` 被调用了两次，两次效果相同：第一次在 `pmm_init()` 之前，评测则以第二次作为插入断点测试的锚点。
-2. **接着实现现场的保存与恢复。**硬件不保存通用寄存器，而 C 函数会随意使用调用者保存寄存器，所以进入 C 之前必须把全部现场存下来，返回前再原样恢复，被打断的代码才感觉不到 Trap 发生过。`SAVE_ALL` 由框架给出，我们补的 `RESTORE_ALL` 难点在于 `sp`：它在帧中保存的是 Trap 前的值，而当前 `sp` 是帧的基址，所以必须最后恢复。它排在处理函数之前，因为没有正确的保存与恢复，任何处理逻辑都无法验证：T1 的实验表明，`sp` 恢复顺序错了，`make qemu` 照样每秒打印 `100 ticks`，只有寄存器比对测试能发现问题。
+1. **让 Trap 有地方可去。**`idt_init()` 把 `sscratch` 清零（约定 0 表示 Trap 来自内核态），再把 `stvec` 设为 `__alltraps`。`__alltraps` 用 `.align(2)` 保证 4 字节对齐，`stvec` 的低两位为 0，即 Direct 模式，所有 Trap 进入同一个入口。
+2. **接着实现现场的保存与恢复。**硬件不保存通用寄存器，而 C 函数会随意使用调用者保存寄存器，所以进入 C 之前必须把全部现场存下来，返回前再原样恢复，被打断的代码才感觉不到 Trap 发生过。
 3. **再把汇编和 C 接起来。**`SAVE_ALL` 结束时 `sp` 恰好指向 Trap frame，按调用约定 `move a0, sp` 后 `jal trap`，C 就拿到了 `struct trapframe *tf`；`trap()` 返回后顺序落入 `__trapret`，执行 `RESTORE_ALL` 和 `sret`。至此“进入—返回”的骨架已经完整，剩下的只是 C 函数里填什么。
-4. **然后处理异常。**异常是当前指令同步引起的，返回位置要由内核决定：断点和非法指令如果原样返回，会再次执行同一条指令，陷入死循环，所以要把 `tf->epc` 推进到下一条指令。推进多少字节不能写死：评测中的 `ebreak` 可能被汇编成 2 字节的 `c.ebreak`，非法指令则是 4 字节，因此要看指令最低两位。异常先于中断实现，是因为它可以随时用一条指令确定地触发，便于先验证“修改 `epc` → 写回 `sepc` → 返回到新位置”这条路径。
-5. **最后处理中断，尤其是时钟中断。**中断是异步的，`sepc` 指向尚未执行的那条指令，处理后原样返回即可。时钟中断要注意两点：OpenSBI 的定时器是一次性的，每次中断都要调用 `clock_set_next_event()` 重新设定，否则只会来一次；计数到一定次数后调用 `sbi_shutdown()` 关机，而关机阈值要大于评测等待的 200 ticks，否则测试主流程来不及输出结果。时钟中断依赖 `clock_init()` 打开 `sie.STIE` 和 `intr_enable()` 打开 `sstatus.SIE`，它把前面所有环节都串了起来：只有入口、现场保存、分派和返回都正确，内核才能每秒稳定地打印一次 `100 ticks`。
-6. **思考题回到“中断打断了谁”。**开中断之后，任何代码都可能在两条指令之间被打断，并在处理函数中被重入。`pmm.c` 的 `alloc_pages`/`free_pages` 用 `local_intr_save`/`local_intr_restore` 包住对空闲链表的操作，就是为了防止链表修改到一半时被中断处理程序再次访问。这部分是对前面几步的反思，所以放在最后。
-
-
+4. **然后处理异常。**异常是当前指令同步引起的，返回位置要由内核决定：断点和非法指令如果原样返回，会再次执行同一条指令，陷入死循环，所以要把 `tf->epc` 推进到下一条指令。评测中的 `ebreak` 可能被汇编成 2 字节的 `c.ebreak`，非法指令则是 4 字节，因此要看指令最低两位。
+5. **最后处理中断，尤其是时钟中断。**中断是异步的，`sepc` 指向尚未执行的那条指令，处理后原样返回即可。时钟中断要注意两点：OpenSBI 的定时器是一次性的，每次中断都要调用 `clock_set_next_event()` 重新设定。时钟中断依赖 `clock_init()` 打开 `sie.STIE` 和 `intr_enable()` 打开 `sstatus.SIE`。
 
 ## 3.3 各功能的核心函数
 
@@ -122,7 +109,6 @@ Lab3 的主题是**中断与异常**。lab2 结束时，内核能管理物理内
 | `clock_init` / `clock_set_next_event` | `clock.c` | 打开时钟中断，经 `sbi_set_timer` 设定下一次事件 | 框架 |
 | `intr_enable` / `local_intr_save` | `intr.c`、`sync.h` | 打开全局中断；在临界区前后关闭和恢复中断 | 框架 |
 
-需要我们实现的只有表中标注“功能模块”的三处，但它们分别位于 Trap 闭环的“返回”“衔接”和“处理”三个位置，任何一处出错都会让整个闭环失效。这也是我们验证时坚持以 `make grade` 的三项测试为准、并用 GDB 核对 `sret` 前后实际 `pc` 的原因。
 
 
 # 四、实验内容与实现
@@ -155,23 +141,6 @@ RESTORE_ALL 不能写成 SAVE_ALL 的简单逆序，需要注意三点：
 - **只写回 sret 需要的 CSR。** `sepc` 决定返回地址，`sstatus` 的 SPP、SPIE 决定返回后的特权级和中断使能；`stval`、`scause` 只是给 `trap()` 看的现场记录，`sret` 不读它们，不需要写回。
 
 `sepc` 必须从帧里写回，而不是沿用 CSR 的当前值，因为 `exception_handler()` 处理 ebreak 和非法指令时会把 `tf->epc` 推进到下一条指令，只有写回 `sepc`，这个修改才会生效。
-
-### GDB 验证
-
-在 `__alltraps`、`jal trap` 和 `sret` 三处下断点，跟踪 `intr_enable()` 之后的第一次时钟中断（实验时 trap.c 中临时放了一个只重设时钟的处理函数，正式的处理函数见功能模块二）。
-
-![](./images/T1-gdb-trap-entry.png)
-<p align="center">图 2　Trap 进入：SAVE_ALL 前后的 sp 与 Trap frame 内容</p>
-
-- 进入 `__alltraps` 时，`scause = 0x8000000000000005`：最高位为 1 表示中断，原因码 5 是 S 态时钟中断。`sepc` 指向 `kern_init` 末尾 `while (1)` 编译成的自跳转指令 `j`，也就是被打断的那条指令。
-- 执行到 `jal trap` 时，`a0 = 0xffffffffc0204ed0` 就是 Trap frame 的地址，比 Trap 前的 sp（`0xffffffffc0204ff0`）低 `0x120` = 288 字节，正是 36 个 8 字节槽位。帧中 `gpr.sp` 存的是 Trap 前的 sp，`sscratch` 已被清零，与上面对 SAVE_ALL 的分析一致。
-- 帧中的 `status = 0x8000000000006120`：SPP（第 8 位）为 1 表示 Trap 来自 S 态，SPIE（第 5 位）为 1 表示 Trap 前中断是打开的。
-
-![](./images/T1-gdb-trap-return.png)
-<p align="center">图 3　Trap 返回：RESTORE_ALL 之后执行 sret</p>
-
-- 停在 `sret` 时，RESTORE_ALL 已经执行完：`sp` 回到 `0xffffffffc0204ff0`，`sepc`、`sstatus` 与帧中的值相同。
-- 单步执行 `sret` 后，`pc` 回到 `kern_init+72` 的 `j` 指令，`sp` 不变，被打断的程序从原处继续运行。时钟中断不修改 `epc`，所以返回的正是被打断、尚未执行的那条指令。
 
 ### 最终提示词
 
@@ -590,13 +559,13 @@ make grade
 
 ![](./images/T2-qemu-run.png)
 
-<p align="center">图 4　统一环境运行：十次时钟输出后正常关机</p>
+<p align="center">图 2　统一环境运行：十次时钟输出后正常关机</p>
 
 原始评分的三项结果分别为 35/35、25/25、40/40，总分 100/100。
 
 ![](./images/T2-make-grade.png)
 
-<p align="center">图 5　make grade 评分结果摘录：100/100</p>
+<p align="center">图 3　make grade 评分结果摘录：100/100</p>
 
 #### 第三阶段：GDB 核对异常返回地址
 
@@ -610,14 +579,14 @@ make grade
 
 ![](./images/T2-breakpoint-epc.png)
 
-<p align="center">图 6　压缩断点：进入处理函数与帧 EPC 更新</p>
+<p align="center">图 4　压缩断点：进入处理函数与帧 EPC 更新</p>
 
 - 进入 `exception_handler` 时，`cause = 0x3`，对应断点异常。帧中的 `epc` 和 `$sepc` 都是 `0xffffffffc020082e`，`x/i $sepc` 显示该地址的指令为 `ebreak`。虽然反汇编使用这个名字，写入的编码 `0x9002` 表明它实际是 2 字节的 `c.ebreak`。
 - 停在 `__trapret` 时，`RESTORE_ALL` 尚未执行，`sp` 仍指向 Trap frame。用 `p/x ((struct trapframe *)$sp)->epc` 读到 `0xffffffffc0200830`，比原始地址增加 2 字节，说明处理函数已按压缩指令长度更新了帧中的返回地址。
 
 ![](./images/T2-breakpoint-ret-pc.png)
 
-<p align="center">图 7　压缩断点：sepc 写回与 sret 返回</p>
+<p align="center">图 5　压缩断点：sepc 写回与 sret 返回</p>
 
 - 反汇编中，`sret` 位于 `0xffffffffc0200cd6`（`__trapret+74`）。停在这里时，`RESTORE_ALL` 已执行完，`$sepc = 0xffffffffc0200830`，与帧中更新后的 EPC 相同。
 - 执行 `si` 后，`$pc` 回到 `0xffffffffc0200830`（`intr_enable+2`），`x/i $pc` 显示 `c.nop -32`。处理器跳过了原来的 2 字节断点指令，没有再次回到 `0xffffffffc020082e` 触发同一个异常。
@@ -628,17 +597,17 @@ make grade
 
 ![](./images/T2-illegal-epc.png)
 
-<p align="center">图 8　非法指令：原因码与 EPC 增加 4 字节</p>
+<p align="center">图 6　非法指令：原因码与 EPC 增加 4 字节</p>
 
 - 进入 `exception_handler` 时，`cause = 0x2`，对应非法指令异常。原始 `epc = 0xffffffffc020082e`，`x/i $sepc` 显示该地址的编码为 `0x7b`，与临时写入的指令一致。
 - `0x0000007b` 的低两位是 `11`，本实验中按 4 字节指令处理。停在 `__trapret` 时，帧中 `epc = 0xffffffffc0200832`，恰好是原地址加 4，说明处理函数已跳过这条非法指令。
 
 ![](./images/T2-illegal-ret-pc.png)
 
-<p align="center">图 9　非法指令测试后续运行：Trap 返回到内核空闲循环</p>
+<p align="center">图 7　非法指令测试后续运行：Trap 返回到内核空闲循环</p>
 
 - 这张图停在同一条 `sret`，但此时 `$sepc = 0xffffffffc020009c`（`kern_init+72`），指向 `while (1)` 编译成的自跳转指令 `j`。单步执行 `sret` 后，`$pc` 也等于这个地址，程序回到空闲循环。
-- 这里记录的是后续 Trap 的返回过程；非法指令的帧 EPC 更新由图 8 验证。
+- 这里记录的是后续 Trap 的返回过程；非法指令的帧 EPC 更新由图 6 验证。
 
 两组结果说明：异常处理函数负责按指令长度推进帧中的 EPC，`RESTORE_ALL` 再把它写回 `sepc`，由 `sret` 使用这个地址返回。压缩断点的截图完整记录了这条路径，非法指令的截图记录了帧 EPC 增加 4 字节以及后续程序继续运行的情况。
 
@@ -830,21 +799,10 @@ static inline bool __intr_save(void) {
 - 如果调用 `alloc_pages` 的上下文原本就已经处于关中断状态（例如外层已经持有了更高级别的内核锁，或者直接运行在关中断的中断处理程序上下文中），退出时不会破坏外层的屏蔽状态，避免错误地提前开启中断引发竞态。
 
 
+
 # 五、测试与验证
 
-### 1. 测试设计与评测原理
-
-`make grade` 先把整个 `code/` 复制到临时目录，由 `tools/inject.py` 把 `tools/test_lab3.c` 和 `tools/test_lab3_context.S` 加入内核，并在 `kern_init()` 中插入三处测试调用：第二个 `idt_init()` 之后、`clock_init()` 之后、`intr_enable()` 之后。随后 `tools/grade.sh` 分别以 `GRADE_LAB3_CONTEXT`、`GRADE_LAB3_ILLEGAL`、`GRADE_LAB3_TIMER` 三个宏重新编译，各启动一次 QEMU，用 `grep -F` 在串口输出中查找固定字符串（不是正则匹配）：
-
-| 测试 | 分值 | 触发方式与检查内容 | 必须出现的字符串 |
-| :--- | :---: | :--- | :--- |
-| Test 1：Trap 入口、寄存器恢复与断点返回 | 35 | `test_lab3_context.S` 先给 t0～t2、s0～s1、a1～a7、s2～s11、t3～t6 写入不同的已知值，执行 `ebreak`，返回后逐个比对（不比对 ra、sp、gp、tp 和用作比较临时寄存器的 a0） | `[Test 1] Trap entry and breakpoint return: PASS`、`Breakpoint at` |
-| Test 2：非法指令返回与处理函数兜底 | 25 | 执行 4 字节的 `.word 0x0000007b`（目标平台上未定义的自定义操作码），返回后继续运行；再直接调用处理函数，传入 S 态软件中断、无最高位的原因码 15 和异常原因码 20 三个构造的 Trap frame，检查各兜底分支 | `[Test 2] Illegal instruction return: PASS`、`Illegal instruction at`、`Supervisor software interrupt`、`Unknown interrupt: cause 15`、`cause    0x00000014` |
-| Test 3：时钟中断的重装与重复返回 | 40 | `clock_init()` 之后检查 `ticks` 仍为 0；`intr_enable()` 之后循环等待 `ticks` 达到 200 | `[Test 3] Sustained supervisor timer: PASS`、`100 ticks`、`ticks=200` |
-
-Test 1 只有在 `RESTORE_ALL` 正确恢复全部寄存器、并且 `sepc` 被推进到 `ebreak` 之后时才会通过；Test 3 要求时钟中断每次都重新设定下一次事件，而且关机阈值要大于 200 ticks，否则测试来不及输出结果。
-
-### 2. 测试执行截图
+### 测试执行截图
 
 #### （1）日常运行输出（`make qemu`）
 
@@ -856,7 +814,7 @@ make qemu
 
 ![QEMU 4.1.1 内核日常运行与时钟中断输出](./images/T4-qemu-run.png)
 
-<p align="center">图 10　make qemu 的运行结果（最终代码，QEMU 4.1.1）</p>
+<p align="center">图 8　make qemu 的运行结果（最终代码，QEMU 4.1.1）</p>
 
 #### （2）自动化评测输出（`make grade`）
 
@@ -868,7 +826,7 @@ make grade
 
 ![Lab 3 自动化评测 100/100](./images/T4-make-grade.png)
 
-<p align="center">图 11　make grade 的评测结果（最终代码）</p>
+<p align="center">图 9　make grade 的评测结果（最终代码）</p>
 
 
 
@@ -960,6 +918,3 @@ OS 原理常用“保存 PC、处理异常、恢复执行”概括返回过程�
 - `STATUS.md` 作为全组唯一的公共看板，仅反映核心集成状态与全组须知，杜绝流水账；
 - 每个成员拥有独立的任务文档（如 `T1-*.md`、`T4-*.md`），在各自的工作区内闭环记录进度、技术决策、验证结果与迭代素材；
 - 严格遵循 Git 门槛与提交规范，在每次更新后同步推送，使得不同成员与不同的 AI Agent 在跨时间和异步交互中始终保持对全局架构和上下游接口的高度共识，避免了代码冲突与上下文污染。
-
-### 3. 工程师主导的“GDB 实证闭环”与 AI 的深度互补
-AI 在概念解析、框架搭建与规范化代码生成上具备极高效率，但其无法直接代替真实的硬件执行与动态调试。在开发过程中，工程师通过 GDB 在 QEMU 中设置断点、单步跟踪 Trap 进入与返回时的寄存器变化（`sepc`、`sstatus.SPP`、`sstatus.SPIE`、`sp` 偏移量），并将真实的调试输出作为反馈输入给 AI。AI 进而依据精确的机器现场协助推断硬件状态迁移，二者形成了“规范输入 → 模型生成 → GDB 实证 → 迭代优化”的高效工程闭环。

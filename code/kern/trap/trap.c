@@ -232,5 +232,12 @@ void trap(struct trapframe *tf)
 
 structure of scause. 
 // ![image](../../../.vscode/image-comment/Screenshot-2026-10-29-103218.png)
+scause 低 63 位是否完全利用:没有,绝大部分是空的
 
+scause 的 64 位里:
+
+最高位(63)是 Interrupt 标志。
+其余 63 位是 Exception Code,但实际有意义的只有最低几位。目前规范里已定义的中断/异常编码最大只到十几(例如 U-mode ecall=8,S-mode ecall=9,指令/load/store 缺页=12/13/15),个别新扩展会到 20 多以上,所以低 5~6 位已经够用。
+规范规定:Exception Code 字段是 WLRL(Write Lists, Read Lists, 即"只会出现合法值"),未使用的高位读出来恒为 0。所以我们用 tf->cause 直接比较 CAUSE_* 是安全的(异常最高位为 0,整个值就是编码本身)。
+规范这样留空,是为了以后扩展:编码空间留给将来的标准扩展和平台自定义(自定义中断编码从 16 起)。保留高位也使得 RV32 和 RV64 的 scause 布局一致:都是"最高位 + 低位编码",只是中间多出来的零更多。
 */

@@ -40,7 +40,7 @@ int kern_init(void)
 
     pmm_init();  // init physical memory management
 
-    idt_init();  // init interrupt descriptor table ??? again? 
+    idt_init();  // ... 测试需要。
 
     clock_init();   // init clock interrupt
     intr_enable();  // enable irq interrupt
