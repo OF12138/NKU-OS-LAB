@@ -10,6 +10,13 @@
 #include <trap.h>
 #include <vmm.h>
 
+/*
+ 分发不同类型的中断给不同的handler, 完成上下文切换之后对中断的具体处理，
+ 例如外设中断要处理外设发来的信息，时钟中断要触发特定的事件。
+ 中断处理初始化的函数也在这里，主要是把中断向量表(stvec)设置成所有中断都要跳到trapentry.S进行处理。
+*/
+
+
 #define TICK_NUM 100
 
 static void print_ticks()
@@ -21,16 +28,23 @@ static void print_ticks()
 #endif
 }
 
-/* idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S
+/* 
+idt_init - initialize IDT to each of the entry points in kern/trap/vectors.S
  */
 void idt_init(void)
 {
-    extern void __alltraps(void);
+    extern void __alltraps(void); //extern void __alltraps(void); 是在 C 中声明一个在其他地方定义的入口符号，对应 trapentry.S 里的标签 , 链接器会把 C 中对 __alltraps 的引用，与汇编中定义的地址关联起
+
+    //约定：若中断前处于S态，sscratch为0
+    //若中断前处于U态，sscratch存储内核栈地址
+    //那么之后就可以通过sscratch的数值判断是内核态产生的中断还是用户态产生的中断
+    //我们现在是内核态所以给sscratch置零
+
     /* Set sscratch register to 0, indicating to exception vector that we are
      * presently executing in the kernel */
     write_csr(sscratch, 0);
     /* Set the exception vector address */
-    write_csr(stvec, &__alltraps);
+    write_csr(stvec, &__alltraps); ////我们保证__alltraps的地址是四字节对齐的，将__alltraps这个符号的地址直接写到stvec寄存器
     /* Allow kernel to access user memory */
     set_csr(sstatus, SSTATUS_SUM);
 }
@@ -84,7 +98,105 @@ void print_regs(struct pushregs *gpr)
 extern struct mm_struct *check_mm_struct;
 
 //lab3 请补充你在lab3中的代码
+//lab3 function2 2414099
+#include <sbi.h>
 
+#define SHUTDOWN_AFTER 10
+
+void interrupt_handler(struct trapframe *tf) {
+    // 清除 scause 最高位的 Interrupt 标志，保留低位的中断编号
+    uintptr_t cause = tf->cause & ~((uintptr_t)1 << (sizeof(uintptr_t) * 8 - 1));
+    static size_t printed_ticks = 0;        // 用于记录已经打印了多少次时钟信息
+
+    switch (cause) {
+        case IRQ_U_SOFT:
+            cprintf("User software interrupt\n");
+            break;
+        case IRQ_S_SOFT:
+            // 就是尝试清除 S 模式软件中断的待处理标志
+            // sip：Supervisor Interrupt Pending，记录哪些中断正处于待处理状态
+            // SIP_SSIP：sip 中表示 S 模式软件中断待处理的标志位
+            clear_csr(sip, SIP_SSIP);
+            cprintf("Supervisor software interrupt\n");
+            break;
+        case IRQ_H_SOFT:
+            cprintf("Hypervisor software interrupt\n");
+            break;
+        case IRQ_M_SOFT:
+            cprintf("Machine software interrupt\n");
+            break;
+        case IRQ_U_TIMER:
+            cprintf("User timer interrupt\n");
+            break;
+        case IRQ_S_TIMER:
+            // 设置下一次时钟中断
+            clock_set_next_event();
+            // 累加时钟中断次数
+            ticks++;
+
+            // 检查是否达到指定节拍数
+            if (ticks % TICK_NUM == 0) {
+                // 打印信息并检查是否需要关机
+                print_ticks();
+                if (++printed_ticks == SHUTDOWN_AFTER) {
+                    sbi_shutdown();
+                }
+            }
+            break;
+        case IRQ_H_TIMER:
+            cprintf("Hypervisor timer interrupt\n");
+            break;
+        case IRQ_M_TIMER:
+            cprintf("Machine timer interrupt\n");
+            break;
+        case IRQ_U_EXT:
+            cprintf("User external interrupt\n");
+            break;
+        case IRQ_S_EXT:
+            cprintf("Supervisor external interrupt\n");
+            break;
+        case IRQ_H_EXT:
+            cprintf("Hypervisor external interrupt\n");
+            break;
+        case IRQ_M_EXT:
+            cprintf("Machine external interrupt\n");
+            break;
+        case IRQ_COP:
+            cprintf("Coprocessor interrupt\n");
+            break;
+        case IRQ_HOST:
+            cprintf("Host interrupt\n");
+            break;
+        default:
+            cprintf("Unknown interrupt: cause %lu\n", (unsigned long)cause);
+            print_trapframe(tf);
+            break;
+    }
+}
+
+void exception_handler(struct trapframe *tf) {
+    switch (tf->cause) {
+        // 处理非法指令异常和断点异常
+        case CAUSE_ILLEGAL_INSTRUCTION:
+            cprintf("Illegal instruction at 0x%016lx\n", (unsigned long)tf->epc);
+            break;
+        case CAUSE_BREAKPOINT:
+            cprintf("Breakpoint at 0x%016lx\n", (unsigned long)tf->epc);
+            break;
+        default:
+            print_trapframe(tf);
+            return;
+    }
+
+    // 修改 tf->epc，让 CPU 跳过发生异常的那条指令
+    // RISC-V 常见指令有 16 位和 32 位两种长度。 在本实验范围内，通过指令最低两位判断应该让 epc 增加 2 还是 4。
+    uint16_t instruction = *(const volatile uint16_t *)tf->epc;
+    if ((instruction & 0x3) == 0x3) {
+        tf->epc += 4; // 4 bytes. 
+    } else {
+        tf->epc += 2;
+    }
+}
 
 
 /* *
@@ -96,7 +208,9 @@ extern struct mm_struct *check_mm_struct;
 void trap(struct trapframe *tf)
 {
     // dispatch based on what type of trap occurred
-    if ((intptr_t)tf->cause < 0)
+    //trap.c的中断处理函数trap, 实际上把中断处理,异常处理的工作分发给了interrupt_handler()，exception_handler(), 这些函数再根据中断或异常的不同类型来处理
+    //（lab3 框架把这段分发写在单独的 trap_dispatch() 里，lab4 框架直接写在 trap() 中）
+    if ((intptr_t)tf->cause < 0) //just one trick : 把无符号数当成有符号数来看，实际上就是看最高位。
     {
         // interrupts
         interrupt_handler(tf);
@@ -107,3 +221,18 @@ void trap(struct trapframe *tf)
         exception_handler(tf);
     }
 }
+
+/*
+// ![image](../../../.vscode/image-comment/Screenshot-2026-11-05-184130.png)
+
+structure of scause. 
+// ![image](../../../.vscode/image-comment/Screenshot-2026-10-29-103218.png)
+scause 低 63 位是否完全利用:没有,绝大部分是空的
+
+scause 的 64 位里:
+
+最高位(63)是 Interrupt 标志。
+其余 63 位是 Exception Code,但实际有意义的只有最低几位。目前规范里已定义的中断/异常编码最大只到十几(例如 U-mode ecall=8,S-mode ecall=9,指令/load/store 缺页=12/13/15),个别新扩展会到 20 多以上,所以低 5~6 位已经够用。
+规范规定:Exception Code 字段是 WLRL(Write Lists, Read Lists, 即"只会出现合法值"),未使用的高位读出来恒为 0。所以我们用 tf->cause 直接比较 CAUSE_* 是安全的(异常最高位为 0,整个值就是编码本身)。
+规范这样留空,是为了以后扩展:编码空间留给将来的标准扩展和平台自定义(自定义中断编码从 16 起)。保留高位也使得 RV32 和 RV64 的 scause 布局一致:都是"最高位 + 低位编码",只是中间多出来的零更多。
+*/

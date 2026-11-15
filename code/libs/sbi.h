@@ -26,6 +26,19 @@
 #define SBI_REMOTE_SFENCE_VMA_ASID 7
 #define SBI_SHUTDOWN 8
 
+/*
+SBI_CALL 先把参数放入约定的寄存器，再执行：
+ecall
+这是一条主动请求服务的指令，触发的是同步异常。
+在本实验中，CPU 转入 M 态的 OpenSBI，处理完再返回 S 态，继续执行 ecall 后面的代码。
+
+先区分两个名字：
+- SBI：S 态软件请求底层服务的接口规范。
+- OpenSBI：实现这些接口、运行在 M 态的固件
+
+（lab3 中这是 libs/sbi.c 里的 sbi_call() 函数，lab4 框架改成了本头文件中的宏和 static inline 函数）
+在本实验环境中，ecall 会触发一次 S → M 的 Trap；时钟事件则由 OpenSBI 和内核分层处理
+*/
 #define SBI_CALL(which, arg0, arg1, arg2) ({			\
 	register uintptr_t a0 asm ("a0") = (uintptr_t)(arg0);	\
 	register uintptr_t a1 asm ("a1") = (uintptr_t)(arg1);	\
@@ -55,6 +68,33 @@ static inline int sbi_console_getchar(void)
 
 static inline void sbi_set_timer(uint64_t stime_value)
 {
+    //当time寄存器(rdtime的返回值)为stime_value的时候触发一个时钟中断
+    //设置定时器时进入 OpenSBI，与之后定时器到期，是两次不同的事件。
+/*
+S 态内核：sbi_set_timer(...)
+    ↓ 执行 SBI_CALL 中的 ecall
+M 态 OpenSBI：设置底层定时器
+    ↓ 返回
+S 态内核：继续执行
+*/
+
+
+/*
+btw, 定时器到期后的路径是
+
+硬件定时器到期
+    ↓
+M 态 OpenSBI 处理机器级定时器中断
+    ↓ 设置 S 态定时器中断待处理位 STIP
+返回 S 态，满足使能条件后
+    ↓
+CPU 进入 S 态 Trap 入口 __alltraps
+    ↓
+内核处理：统计 ticks、安排下一次定时事件等
+
+// ![image](../../.vscode/image-comment/Screenshot-2026-10-29-112712.png)
+
+*/
 #if __riscv_xlen == 32
 	SBI_CALL_2(SBI_SET_TIMER, stime_value, stime_value >> 32);
 #else
