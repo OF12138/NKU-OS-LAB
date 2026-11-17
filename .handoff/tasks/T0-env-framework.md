@@ -31,3 +31,4 @@
 - lab4 的 default_pmm.c 包含 `<best_fit_pmm.h>`，但该头文件在 lab4 中不存在，pmm.c 又引用 `default_pmm_manager` → 改 include 和变量名。
 
 ## 留言
+- [lyp 2026-11-17] 已在共享 `pmm.c` 的 function1 区实现 page_insert/page_remove，标记学号 2414099；保留现有 lab2/lab3 代码与学习注释。独立副本 PMM 10/10，详情见 T1 任务及验证日志。

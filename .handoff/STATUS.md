@@ -7,7 +7,7 @@
 | ID | 任务 | 负责人 | DDL | 状态 | 主要文件 |
 |----|------|--------|-----|------|----------|
 | T0 | 环境与框架：填入 lab2/lab3 代码（保留学习注释）、grade 使用 QEMU 4.1.1 | openfar | 11-16 | 完成 | code/kern/mm/default_pmm.c, code/kern/mm/pmm.c, code/kern/trap/trap.c, code/kern/trap/trapentry.S, code/Makefile |
-| T1 | 功能模块一：page_insert 与 page_remove | lyp | 11-18 | 待开始 | code/kern/mm/pmm.c, report/sections/T1-* |
+| T1 | 功能模块一：page_insert 与 page_remove | lyp | 11-18 | 完成 | code/kern/mm/pmm.c, report/sections/T1-* |
 | T2 | 功能模块二：alloc_proc、proc_init、kernel_thread、do_fork、copy_thread、copy_mm | openfar | 11-18 | 待开始 | code/kern/process/proc.c, report/sections/T2-* |
 | T3 | 功能模块三：cpu_idle、schedule、proc_run、switch_to | openfar | 11-19 | 待开始 | code/kern/process/proc.c, code/kern/schedule/sched.c, code/kern/process/switch.S, report/sections/T3-* |
 | T4 | 整体逻辑分析；知识点与 OS 原理对应 | lyp | 11-20 | 待开始 | report/sections/T4-* |

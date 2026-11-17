@@ -295,32 +295,42 @@ void pmm_init(void)
     kmalloc_init();
 }
 
-// get_pte - get pte and return the kernel virtual address of this pte for la
-//        - if the PT contians this pte didn't exist, alloc a page for PT
+// get_pte - 找到某个虚拟地址对应的“最后一级页表项”，并返回这个页表项在内存中的地址。
+//        - 如果查找途中缺少下级页表，它还可以根据参数决定是否创建。
 // parameter:
-//  pgdir:  the kernel virtual base address of PDT
-//  la:     the linear address need to map
-//  create: a logical value to decide if alloc a page for PT
-// return vaule: the kernel virtual address of this pte
+//  pgdir:  根页表的内核虚拟地址，从这里开始查找
+//  la:     要查询的虚拟地址
+//  create: 	缺少下级页表时，是否允许分配内存创建它
+// return vaule: 这个页表项在内存中的地址
 pte_t *get_pte(pde_t *pgdir, uintptr_t la, bool create)
 {
+    // 查找第一级页表项
     pde_t *pdep1 = &pgdir[PDX1(la)];
+    // 如果第一级页表项无效，说明目前还没有可用的下一级页表，需要考虑创建。
     if (!(*pdep1 & PTE_V))
     {
         struct Page *page;
+        // 不允许创建，直接返回 NULL；alloc_page() 分配物理页失败，也返回 NULL
         if (!create || (page = alloc_page()) == NULL)
         {
             return NULL;
         }
+        // 把新分配的物理页的引用计数设置为 1，表示它已被引用
         set_page_ref(page, 1);
+        // 把 struct Page * 转换成对应的物理页起始地址。
         uintptr_t pa = page2pa(page);
+        // 把新分配的整个 4KB 物理页清零，因为我们打算用这个物理页存放一张新的页表
         memset(KADDR(pa), 0, PGSIZE);
+        // 根据物理页号和标志位构造页表项的内容
         *pdep1 = pte_create(page2ppn(page), PTE_U | PTE_V);
     }
+    // 找到第二级页表中的指定页表项
     pde_t *pdep0 = &((pte_t *)KADDR(PDE_ADDR(*pdep1)))[PDX0(la)];
+    // 如果第二级页表项无效，说明目前还没有可用的下一级页表，需要考虑创建。
     if (!(*pdep0 & PTE_V))
     {
         struct Page *page;
+        // 不允许创建，直接返回 NULL；alloc_page() 分配物理页失败，也返回 NULL
         if (!create || (page = alloc_page()) == NULL)
         {
             return NULL;
@@ -328,8 +338,10 @@ pte_t *get_pte(pde_t *pgdir, uintptr_t la, bool create)
         set_page_ref(page, 1);
         uintptr_t pa = page2pa(page);
         memset(KADDR(pa), 0, PGSIZE);
+        // 根据物理页号和标志位构造页表项的内容
         *pdep0 = pte_create(page2ppn(page), PTE_U | PTE_V);
     }
+    // 返回最终三级页表的页表项地址
     return &((pte_t *)KADDR(PDE_ADDR(*pdep0)))[PTX(la)];
 }
 
@@ -348,8 +360,59 @@ struct Page *get_page(pde_t *pgdir, uintptr_t la, pte_t **ptep_store)
     return NULL;
 }
 
-//LAB4 function1 YOUR CODE
+//LAB4 function1 2414099
+// page_insert - 在页表项中写入物理页号，建立映射，并设置这个映射的权限。
+//             - 如果原来已有映射，就更新同页权限或替换旧页，同时维护引用计数并刷新 TLB。
+// parameter:
+//  pgdir:  根页表的内核虚拟地址，从这里开始查找
+//  page:   要映射的物理页对应的 Page 结构体指针
+//  la:     要建立或更新映射的虚拟地址
+//  perm:   这个映射的权限标志位
+// return value: 成功返回 0；创建所需页表时内存不足，返回 -E_NO_MEM
+int page_insert(pde_t *pgdir, struct Page *page, uintptr_t la, uint32_t perm)
+{
+    pte_t *ptep = get_pte(pgdir, la, 1);
+    if (ptep == NULL){return -E_NO_MEM;}
 
+    // 先持有新页，避免同页重复插入时引用计数暂时归零而被释放。
+    page_ref_inc(page);
+    if (*ptep & PTE_V) // 检查当前页表项是否有效
+    {
+        struct Page *old_page = pte2page(*ptep);
+        if (old_page == page) {page_ref_dec(page);} // 原来映射的就是同一个物理页
+        else {page_remove(pgdir, la);} // 原来映射的是另一个物理页
+    }
+
+    // 写入新的页表项
+    *ptep = pte_create(page2ppn(page), perm);
+    // 刷新 TLB
+    tlb_invalidate(pgdir, la);
+    return 0;
+}
+// page_remove - 清除页表项，撤销映射，并刷新对应的 TLB 缓存。
+//             - 减少原物理页的引用计数，归零时释放它；如果原来没有映射，则直接返回。
+// parameter:
+//  pgdir:  根页表的内核虚拟地址，从这里开始查找
+//  la:     要撤销映射的虚拟地址
+// return value: 无返回值
+void page_remove(pde_t *pgdir, uintptr_t la)
+{
+    // 查找页表项
+    pte_t *ptep = get_pte(pgdir, la, 0);
+    if (ptep != NULL && (*ptep & PTE_V))
+    {
+        // 找到原来映射的物理页
+        struct Page *page = pte2page(*ptep);
+        // 清除映射
+        *ptep = 0;
+        tlb_invalidate(pgdir, la);
+        // 减少物理页引用计数，必要时释放
+        if (page_ref_dec(page) == 0)
+        {
+            free_page(page);
+        }
+    }
+}
 
 
 
