@@ -95,11 +95,11 @@
 
 #### 1. `get_pte()` 的两段同构代码与 Sv32 / Sv39 / Sv48 异同解析
 
-在 `code/kern/mm/pmm.c:305-334` 中，面向 Sv39 三级页表的 `get_pte()` 实现如下结构：
+在 `code/kern/mm/pmm.c:305-346` 中，面向 Sv39 三级页表的 `get_pte()` 实现如下结构：
 
-- **第一段（第 307-319 行）**：用 `PDX1(la)`（`VPN[2]`）索引一级根页表 `pgdir`，得到目录项指针 `pdep1`。若 `!(*pdep1 & PTE_V)` 且 `create == 1`，则调用 `alloc_page()` 分配一页 4 KiB 物理页、置引用计数 `set_page_ref(page, 1)`、`memset(KADDR(pa), 0, PGSIZE)` 清零，并构造 `*pdep1 = pte_create(page2ppn(page), PTE_U | PTE_V)`。
-- **第二段（第 320-332 行）**：从 `*pdep1` 解出二级页表物理地址并转为内核虚拟地址 `KADDR(PDE_ADDR(*pdep1))`，用 `PDX0(la)`（`VPN[1]`）索引得到目录项指针 `pdep0`。若无效且允许创建，则执行完全相同的“分配 1 页 -> `set_page_ref(page, 1)` -> `memset` 清零 -> `pte_create(..., PTE_U | PTE_V)`”步骤。
-- **最终返回（第 333 行）**：从 `*pdep0` 解出三级（叶子）页表基址，加上 `PTX(la)`（`VPN[0]`）偏移，返回目标 `pte_t *`。
+- **第一段（第 308-326 行）**：用 `PDX1(la)`（`VPN[2]`）索引一级根页表 `pgdir`，得到目录项指针 `pdep1`。若 `!(*pdep1 & PTE_V)` 且 `create == 1`，则调用 `alloc_page()` 分配一页 4 KiB 物理页、置引用计数 `set_page_ref(page, 1)`、`memset(KADDR(pa), 0, PGSIZE)` 清零，并构造 `*pdep1 = pte_create(page2ppn(page), PTE_U | PTE_V)`。
+- **第二段（第 328-343 行）**：从 `*pdep1` 解出二级页表物理地址并转为内核虚拟地址 `KADDR(PDE_ADDR(*pdep1))`，用 `PDX0(la)`（`VPN[1]`）索引得到目录项指针 `pdep0`。若无效且允许创建，则执行完全相同的“分配 1 页 -> `set_page_ref(page, 1)` -> `memset` 清零 -> `pte_create(..., PTE_U | PTE_V)`”步骤。
+- **最终返回（第 345 行）**：从 `*pdep0` 解出三级（叶子）页表基址，加上 `PTX(la)`（`VPN[0]`）偏移，返回目标 `pte_t *`。
 
 ##### （1）RISC-V 三种分页模式（Sv32 / Sv39 / Sv48）的异同对比
 
@@ -139,7 +139,7 @@
 3. **半创建状态难以回滚（内存泄漏隐患）**：
    在 Sv39 三级结构下，若 `create = 1` 时第一级 `pdep1` 分配页表页成功，但第二级 `pdep0` 调用 `alloc_page()` 时物理内存耗尽返回 `NULL`，`get_pte()` 会直接返回 `NULL`。此时挂在 `pgdir[PDX1(la)]` 上的那页二级页表页已经清零挂入但未被任何有效叶子页使用，函数本身并未将其回滚释放。
 4. **中间页表权限与属性缺乏精细控制**：
-   当前 `get_pte` 在内部硬编码了目录项属性 `PTE_U | PTE_V`（`code/kern/mm/pmm.c:318,331`），无论映射的是内核地址空间还是用户地址空间，都无法按场景灵活定制中间目录标志位。
+   当前 `get_pte` 在内部硬编码了目录项属性 `PTE_U | PTE_V`（`code/kern/mm/pmm.c:325,342`），无论映射的是内核地址空间还是用户地址空间，都无法按场景灵活定制中间目录标志位。
 
 ##### （3）结论：是否有必要拆开？
 

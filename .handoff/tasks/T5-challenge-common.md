@@ -14,8 +14,9 @@
 ## 当前进度 / 下一步
 - 11-16：已拉取 `origin/lab4` 并切换至 `lab4` 分支；从课程官网核对并补齐 Lab 4「实验目的」「扩展练习 Challenge」「实验报告要求」原文。
 - 11-16：完成 `report/sections/T5-challenge.md` 初稿（Challenge 1 底层 CSR 机制及调度临界区预分析，Challenge 2 Sv32/Sv39/Sv48 对比与 `get_pte()` 拆分评价）、四段式提示词 `report/sections/T5-challenge.prompt.md`，以及 `report/sections/T5-common.md` 不依赖实测的前置骨架（实验目的、实验环境框架、评测原理、AI 协作经验初稿）。
+- 11-18：同步 `origin/lab4` 至 `826a448`（T1 已合入）；更新 `T5-common.md` 本人底层模型为 `Gemini 4 Argon / Gemini 4 Hydrogen`，并校准 `T5-challenge.md` 中因 T1 补充注释导致的 `get_pte()` 源码行号偏移。
 - 下一步：
-  1. 等待 T1-T3 合入后，对照 `schedule()` 与 `proc_run()` 最终源码核对并补充 Challenge 1 的实证行号与代码细节，定稿提交 Challenge（DDL 11-19）；
+  1. 等待 T2-T3 合入后，对照 `schedule()` 与 `proc_run()` 最终源码核对并补充 Challenge 1 的实证行号与代码细节，定稿提交 Challenge（DDL 11-19）；
   2. 向组员确认 Lab 4 各自 AI 工具与底层模型配置，补齐 `T5-common.md` 实验环境表；
   3. T1-T3 全部通过后，在统一 QEMU 4.1.1 下运行 `make qemu` 与 `make grade` 验证 30/30 并截取 `report/images/T5-qemu-run.png`、`report/images/T5-make-grade.png`，完成公共章节终稿（DDL 11-21）。
 
@@ -31,5 +32,6 @@
 ## 迭代素材
 - `T5-challenge.md` 行号核对迭代：初稿凭印象写了 `init.c:51-57`、`clock.c:51`、`trapentry.S:105-120`，经 `nl -ba` 逐行核对发现受 Lab 0-3 注入的中文学习注释影响，实际行号分别为 `init.c:50-55`、`clock.c:55`、`trapentry.S:157-167`，已全部修正。
 - 提示词 `[RELY]` 格式核对：确保所有 `[RELY]` 代码块逐行原样复制自当前 `code/`（保持原有 `{` 换行与单行风格），一次通过 `check-rely.py` 校验。
+- 11-18 T1 合入校准：T1 提交（`826a448`）在 `code/kern/mm/pmm.c` 的 `get_pte()` 内补充中文注释，导致 Challenge 2 引用的行号由 `305-334` 整体后移至 `305-346`（对应第一段 `308-326`、第二段 `328-343`、返回 `345`、硬编码行 `325,342`），已同步核验修正。
 
 ## 留言
