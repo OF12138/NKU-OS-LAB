@@ -12,10 +12,10 @@
 | T3 | 功能模块三：cpu_idle、schedule、proc_run、switch_to | openfar | 11-19 | 完成 | code/kern/process/proc.c, code/kern/schedule/sched.c, code/kern/process/switch.S, report/sections/T3-* |
 | T4 | 整体逻辑分析；知识点与 OS 原理对应 | lyp | 11-20 | 完成 | report/sections/T4-* |
 | T5 | Challenge 两题；实验目的、实验环境、测试与验证、实验总结初稿 | nagilix | Challenge 11-19，公共章节 11-21 | 完成 | report/sections/T5-*, report/images/T5-* |
-| T6 | 集成：report.md、prompt.md、最终 make grade | openfar | 11-22 | 待开始 | report/report.md, report/prompt.md |
+| T6 | 集成：report.md、prompt.md、最终 make grade | openfar | 11-22 | 完成 | report/report.md, report/prompt.md |
 
 ## 集成状态
-- make qemu ✅   make grade ✅（11-19，30/30）   report.md 已合并 ⬜   prompt.md 已合并 ⬜
+- make qemu ✅   make grade ✅（11-19，30/30）   report.md 已合并 ✅   prompt.md 已合并 ✅
 
 ## 全组须知
 - 代码（11-19）：T1～T3 已全部完成，`make grade` 30/30；T4、T5 可以对照最终代码核实结论、截取测试截图。`make qemu` 最后出现 `process exit!!` panic 是 init_main 返回后 do_exit 的预期行为。
