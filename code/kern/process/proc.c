@@ -388,14 +388,49 @@ void proc_init(void)
 }
 
 
-//LAB4 function3 YOUR CODE
+//LAB4 function3 2411264
 /*
-【尚未实现】proc.h / init.c / test_lab4.c 已在使用下面这些函数，这里还没有定义：
-  proc_run(proc)      切换到 proc 运行：关中断 -> 更新 current -> 把 proc->pgdir 装入 satp -> switch_to(旧 context, 新 context) -> 恢复中断。
-  cpu_idle()          idle 线程的死循环：need_resched 为真就 schedule()。
-另外还有 switch.S 里的 switch_to 和 sched.c 里的 schedule（各有一个 function3 占位）。
-（copy_thread、do_fork、kernel_thread、proc_init 属于功能模块二，已在上面实现。）
+proc_run - 切换到 proc 运行：关中断 -> 更新 current -> 把 proc->pgdir 装入 satp -> switch_to(旧 context, 新 context) -> 恢复中断。
+（switch.S 里的 switch_to 和 sched.c 里的 schedule 也属于功能模块三，各在自己的 function3 标记下。）
+- proc 就是 current 时什么也不做。
+- satp 的写法参照 pmm.c 的 enable_paging()：MODE 字段在最高 4 位，SATP_MODE_SV39 的值是 8，要左移 60 位；
+  低 44 位是根页表的物理页号 pgdir >> 12。riscv.h 里的 lsatp() 是 Sv32 遗留（MODE 在第 31 位、参数只有 32 位），不能用。
+  本实验所有线程的 pgdir 都是 boot_pgdir_pa，写 satp 实际不会改变映射；仍按“换页表后 sfence.vma”的规范刷新 TLB，
+  lab5 各进程有自己的页表时这一步是必需的。
+- 关中断保证“current 已改、页表已换、寄存器还没换”的中间状态不会被时钟中断打断。
+- switch_to 返回时，已经是“很久以后 prev 再次被调度回来”，接着执行 local_intr_restore 恢复 prev 自己的中断状态。
+  新线程第一次运行不会回到这里，而是从 forkret 开始（见 copy_thread），它的中断由 __trapret 的 sret（SPIE=1）打开。
 */
+void proc_run(struct proc_struct *proc)
+{
+    if (proc != current)
+    {
+        bool intr_flag;
+        struct proc_struct *prev = current, *next = proc;
+        local_intr_save(intr_flag);
+        {
+            current = next;
+            write_csr(satp, ((uintptr_t)SATP_MODE_SV39 << 60) | (next->pgdir >> RISCV_PGSHIFT));
+            flush_tlb();
+            switch_to(&(prev->context), &(next->context));
+        }
+        local_intr_restore(intr_flag);
+    }
+}
+
+// cpu_idle - idle 线程（kern_init 的最后一步）的死循环：need_resched 为真就调用 schedule() 让出 CPU。
+// 本实验中这是唯一的调度点。proc_init 已把 idleproc->need_resched 置 1，所以第一次进入就会切到 initproc；
+// 以后只要没有其他可运行线程，schedule 就会回到 idleproc，它在这里继续空转。
+void cpu_idle(void)
+{
+    while (1)
+    {
+        if (current->need_resched)
+        {
+            schedule();
+        }
+    }
+}
 
 
 
