@@ -5,24 +5,38 @@
 #include <defs.h>
 #endif /* !__ASSEMBLER__ */
 
-// A linear address 'la' has a three-part structure as follows:
+//定义了一些与内存管理单元（Memory Management Unit, MMU）相关的宏和常量，用于操作线性地址和物理地址，以及页表项的字段。
+
+// A linear address 'la' has a four-part structure as follows:
 //
-// +--------10------+-------10-------+---------12----------+
-// | Page Directory |   Page Table   | Offset within Page  |
-// |      Index     |     Index      |                     |
-// +----------------+----------------+---------------------+
-//  \--- PDX(la) --/ \--- PTX(la) --/ \---- PGOFF(la) ----/
-//  \----------- PPN(la) -----------/
+// +--------9-------+-------9--------+-------9--------+---------12----------+
+// | Page Directory | Page Directory |   Page Table   | Offset within Page  |
+// |     Index 1    |    Index 2     |                |                     |
+// +----------------+----------------+----------------+---------------------+
+//  \-- PDX1(la) --/ \-- PDX0(la) --/ \--- PTX(la) --/ \---- PGOFF(la) ----/
+//  \-------------------PPN(la)----------------------/
 //
-// The PDX, PTX, PGOFF, and PPN macros decompose linear addresses as shown.
+// The PDX1, PDX0, PTX, PGOFF, and PPN macros decompose linear addresses as shown.
 // To construct a linear address la from PDX(la), PTX(la), and PGOFF(la),
 // use PGADDR(PDX(la), PTX(la), PGOFF(la)).
+// 
+// RISC-V uses 39-bit virtual address to access 56-bit physical address!
+// Sv39 virtual address:
+// +----9----+----9---+----9---+---12--+
+// |  VPN[2] | VPN[1] | VPN[0] | PGOFF |
+// +---------+----+---+--------+-------+
+//
+// Sv39 physical address:
+// +----26---+----9---+----9---+---12--+
+// |  PPN[2] | PPN[1] | PPN[0] | PGOFF |
+// +---------+----+---+--------+-------+
+//
+// Sv39 page table entry:
+// +----26---+----9---+----9---+---2----+-------8-------+
+// |  PPN[2] | PPN[1] | PPN[0] |Reserved|D|A|G|U|X|W|R|V|
+// +---------+----+---+--------+--------+---------------+
 
-// RISC-V uses 32-bit virtual address to access 34-bit physical address!
-// Sv32 page table entry:
-// +---------12----------+--------10-------+---2----+-------8-------+
-// |       PPN[1]        |      PPN[0]     |Reserved|D|A|G|U|X|W|R|V|
-// +---------12----------+-----------------+--------+---------------+
+
 
 // page directory index
 #define PDX1(la) ((((uintptr_t)(la)) >> PDX1SHIFT) & 0x1FF)
@@ -79,3 +93,25 @@
 #define PTE_USER (PTE_R | PTE_W | PTE_X | PTE_U | PTE_V)
 
 #endif /* !__KERN_MM_MMU_H__ */
+
+
+//sv32 :
+// A linear address 'la' has a three-part structure as follows:
+// sv32: 
+// +--------10------+-------10-------+---------12----------+
+// | Page Directory |   Page Table   | Offset within Page  |
+// |      Index     |     Index      |                     |
+// +----------------+----------------+---------------------+
+//  \--- PDX(la) --/ \--- PTX(la) --/ \---- PGOFF(la) ----/
+//  \----------- PPN(la) -----------/
+//
+// The PDX, PTX, PGOFF, and PPN macros decompose linear addresses as shown.
+// To construct a linear address la from PDX(la), PTX(la), and PGOFF(la),
+// use PGADDR(PDX(la), PTX(la), PGOFF(la)).
+//
+// RISC-V uses 32-bit virtual address to access 34-bit physical address!
+// Sv32 page table entry:
+// +---------12----------+--------10-------+---2----+-------8-------+
+// |       PPN[1]        |      PPN[0]     |Reserved|D|A|G|U|X|W|R|V|
+// +---------12----------+-----------------+--------+---------------+
+

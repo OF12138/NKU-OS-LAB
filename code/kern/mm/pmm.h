@@ -31,7 +31,7 @@ struct pmm_manager
         // setup description&management data structcure according to
                     // the initial free physical memory space
 
-    struct Page *(*alloc_pages)(size_t n); //// 分配至少n个物理页面, 根据分配算法可能返回不同的结果
+    struct Page* (*alloc_pages)(size_t n); //// 分配至少n个物理页面, 根据分配算法可能返回不同的结果
      // allocate >=n pages, depend on the allocation algorithm
 
 

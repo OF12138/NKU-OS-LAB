@@ -5,7 +5,6 @@
 # CPU 状态：处于 S Mode ，寄存器 satp 的 MODE被设置为 Bare ，
 # 即无论取指还是访存我们都通过物理地址直接访问物理内存。 
 # PC=0x80200000 指向内核的第一条指令。栈顶地址 SP 处在 OpenSBI 代码内。
-
 # 我们假定内核大小不超过 1GiB，
 # 通过一个大页将虚拟地址区间[0xffffffffc0000000,0xffffffffffffffff] 
 # 映射到物理地址区间 [0x80000000,0xc0000000)，
@@ -47,7 +46,6 @@ kern_entry:
     # 使用 sfence.vma 指令刷新 TLB
     sfence.vma
     # 从此，我们给内核搭建出了一个完美的虚拟内存空间！
-    #nop # 可能映射的位置有些bug。。插入一个nop
     
     # 我们在虚拟内存空间中：随意将 sp 设置为虚拟地址！
     lui sp, %hi(bootstacktop)

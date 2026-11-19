@@ -12,6 +12,248 @@
 #include <stdlib.h>
 #include <assert.h>
 
+
+
+// the process set's list
+list_entry_t proc_list; //所有进程控制块的双向线性列表，proc_struct中的成员变量list_link将链接入这个链表中。
+
+#define HASH_SHIFT 10
+#define HASH_LIST_SIZE (1 << HASH_SHIFT)
+#define pid_hashfn(x) (hash32(x, HASH_SHIFT))
+
+// has list for process set based on pid
+static list_entry_t hash_list[HASH_LIST_SIZE]; //所有进程控制块的哈希表，proc_struct中的成员变量hash_link将基于pid链接入这个哈希表中。
+
+// idle proc
+struct proc_struct *idleproc = NULL;
+// init proc
+struct proc_struct *initproc = NULL; //本实验中，指向一个内核线程。本实验以后，此指针将指向第一个用户态进程。
+// current proc
+/*
+前占用CPU且处于“运行”状态进程控制块指针。
+通常这个变量是只读的，只有在进程切换的时候才进行修改，
+并且整个切换和修改过程需要保证操作的原子性，目前至少需要屏蔽中断。可以参考 switch_to 的实现。
+*/
+struct proc_struct *current = NULL;
+
+// 当前系统中的进程/线程个数（do_fork 成功创建一个就 +1）。get_pid 里的 static_assert 保证 MAX_PID > MAX_PROCESS，所以总能找到空闲 pid。
+static int nr_process = 0;
+
+// 下面三个函数用汇编写，这里只做声明：
+void kernel_thread_entry(void);                          // process/entry.S：内核线程的统一入口，调用 fn(arg)，fn 返回后调用 do_exit
+void forkrets(struct trapframe *tf);                     // trap/trapentry.S：把 sp 设为 tf 后跳到 __trapret，按 tf 恢复寄存器并 sret
+void switch_to(struct context *from, struct context *to); // process/switch.S（待实现）：保存 from 的被调用者保存寄存器、恢复 to 的，实现线程切换
+
+// set_proc_name - set the name of proc
+// 给进程起名字，只用于调试输出。先把 name 数组清零，再拷贝 PROC_NAME_LEN(15) 字节，所以 name[15] 恒为 '\0'。
+// 注意 memcpy 固定拷 15 字节，不会在字符串结尾停下：传入比 15 字节短的字符串常量时会多读后面的内存（读到的内容不影响使用，一般无害）。
+char * set_proc_name(struct proc_struct *proc, const char *name)
+{
+    memset(proc->name, 0, sizeof(proc->name));
+    return memcpy(proc->name, name, PROC_NAME_LEN);
+}
+
+// get_proc_name - get the name of proc
+// 把名字复制到一个 static 缓冲区后返回，方便直接传给 cprintf("%s")。
+// 因为缓冲区是全局共享的，连续调用两次，后一次会覆盖前一次的结果；也不是线程安全的。
+char * get_proc_name(struct proc_struct *proc)
+{
+    static char name[PROC_NAME_LEN + 1];
+    memset(name, 0, sizeof(name));
+    return memcpy(name, proc->name, PROC_NAME_LEN);
+}
+
+// get_pid - alloc a unique pid for process
+/*
+分配一个当前没有被任何进程使用的 pid。做法是“线性递增 + 偶尔扫描链表”，避免每次都遍历 proc_list：
+  last_pid   上一次分配出去的 pid，每次先 +1 作为候选
+  next_safe  比 last_pid 大的、已被占用的最小 pid；于是 (last_pid, next_safe) 之间的号码都保证空闲
+所以：
+  1) 候选 last_pid < next_safe：一定空闲，直接返回（快速路径，不扫描链表）；
+  2) 候选 >= next_safe，或 pid 回绕（>= MAX_PID 时从 1 重新开始）：扫描一遍 proc_list ——
+       碰到 pid 恰好等于候选就把候选 +1（冲突），并在越过 next_safe 时从头重扫（repeat）；
+       碰到比候选大、又比 next_safe 小的 pid，就把 next_safe 降到它，缩小“已知空闲区间”的上界；
+  3) 两个 static 变量初值都是 MAX_PID，所以第一次调用必然走 last_pid=1 + 扫描的路径。
+pid 0 留给 idleproc（它不是通过 get_pid 分配的），所以这里从 1 开始。
+*/
+static int get_pid(void)
+{
+    static_assert(MAX_PID > MAX_PROCESS);
+    struct proc_struct *proc;
+    list_entry_t *list = &proc_list, *le;
+    static int next_safe = MAX_PID, last_pid = MAX_PID;
+    if (++last_pid >= MAX_PID)
+    {
+        last_pid = 1;
+        goto inside;
+    }
+    if (last_pid >= next_safe)
+    {
+    inside:
+        next_safe = MAX_PID;
+    repeat:
+        le = list;
+        while ((le = list_next(le)) != list)
+        {
+            proc = le2proc(le, list_link);
+            if (proc->pid == last_pid)
+            {
+                if (++last_pid >= next_safe)
+                {
+                    if (last_pid >= MAX_PID)
+                    {
+                        last_pid = 1;
+                    }
+                    next_safe = MAX_PID;
+                    goto repeat;
+                }
+            }
+            else if (proc->pid > last_pid && next_safe > proc->pid)
+            {
+                next_safe = proc->pid;
+            }
+        }
+    }
+    return last_pid;
+}
+
+
+// forkret -- the first kernel entry point of a new thread/process
+// NOTE: the addr of forkret is setted in copy_thread function
+//       after switch_to, the current proc will execute here.
+/*
+新线程“第一次被调度”时执行的第一个函数。它能被执行，是因为 copy_thread 把新线程 context.ra 设成了 forkret：
+switch_to 恢复寄存器后执行 ret，就跳到这里（此时 proc_run 已把 current 改成了这个新线程）。
+forkrets(current->tf) 把 sp 指到该线程的 trapframe，再走 __trapret 的“从中断返回”流程：按 tf 恢复所有寄存器，
+然后 sret 到 tf->epc。对内核线程，epc 是 kernel_thread_entry，s0/s1 里放着 fn 和 arg，
+于是线程就从 fn(arg) 开始运行。这个设计让“新建线程的第一次运行”和“线程从中断返回”共用同一套恢复代码。
+*/
+static void forkret(void)
+{
+    forkrets(current->tf);
+}
+
+// hash_proc - add proc into proc hash_list
+// 以 pid 为键，把 proc 的 hash_link 头插到对应桶的链表中（桶下标 = hash32(pid, 10)，共 1024 个桶）。
+// 目的是让 find_proc 按 pid 查找时不用遍历整个 proc_list。
+static void hash_proc(struct proc_struct *proc)
+{
+    list_add(hash_list + pid_hashfn(proc->pid), &(proc->hash_link));
+}
+
+// find_proc - find proc frome proc hash_list according to pid
+// 按 pid 查找进程控制块：只在该 pid 所在的哈希桶里线性查找，找不到（或 pid 不在 (0, MAX_PID) 范围内）返回 NULL。
+// le2proc(le, hash_link) 是“从链表节点反推出所在 proc_struct”的 container_of 写法，与 lab2 的 le2page 同理。
+struct proc_struct * find_proc(int pid)
+{
+    if (0 < pid && pid < MAX_PID)
+    {
+        list_entry_t *list = hash_list + pid_hashfn(pid), *le = list;
+        while ((le = list_next(le)) != list)
+        {
+            struct proc_struct *proc = le2proc(le, hash_link);
+            if (proc->pid == pid)
+            {
+                return proc;
+            }
+        }
+    }
+    return NULL;
+}
+
+
+// setup_kstack - alloc pages with size KSTACKPAGE as process kernel stack
+/*
+给进程分配内核栈：向物理内存管理器要 KSTACKPAGE(=2) 个连续物理页，共 8KiB（KSTACKSIZE）。
+alloc_pages 返回的是 Page 描述符，page2kva 把它换成内核虚拟地址，存进 proc->kstack。
+这个地址是栈区间的“低端”：栈顶是 proc->kstack + KSTACKSIZE，栈向低地址增长；
+copy_thread 会把该线程的 trapframe 放在栈顶附近。
+这块内存在 entry.S 建立的 1GiB 大页映射范围内，所以不需要新建任何页表项。
+成功返回 0，没有足够物理内存返回 -E_NO_MEM。
+*/
+static int setup_kstack(struct proc_struct *proc)
+{
+    struct Page *page = alloc_pages(KSTACKPAGE);
+    if (page != NULL)
+    {
+        proc->kstack = (uintptr_t)page2kva(page);
+        return 0;
+    }
+    return -E_NO_MEM;
+}
+
+// put_kstack - free the memory space of process kernel stack
+// setup_kstack 的逆操作：用 kva2page 把内核虚拟地址换回 Page 描述符，再把这 KSTACKPAGE 页还给物理内存管理器。
+static void put_kstack(struct proc_struct *proc)
+{
+    free_pages(kva2page((void *)(proc->kstack)), KSTACKPAGE);
+}
+
+
+// do_exit - called by sys_exit
+//   1. call exit_mmap & put_pgdir & mm_destroy to free the almost all memory space of process
+//   2. set process' state as PROC_ZOMBIE, then call wakeup_proc(parent) to ask parent reclaim itself.
+//   3. call scheduler to switch to other process
+// 【lab4 只是占位】本 lab 的内核线程都不会退出，真正的进程退出逻辑到 lab5 才实现。
+// 若某个线程的 fn 返回，kernel_thread_entry 会调用到这里，直接 panic。
+int do_exit(int error_code)
+{
+    panic("process exit!!.\n");
+}
+
+// init_main - the second kernel thread used to create user_main kernel threads
+// 【lab4】第二个内核线程（pid=1，initproc）的函数体：打印自己的 pid、名字和传进来的参数后返回。
+// 参数 arg 由 proc_init 里的 kernel_thread(init_main, "...", 0) 传入，经 trapframe 的 s1 寄存器交给 kernel_thread_entry。
+// 它返回后会走到 do_exit（目前是 panic）。到 lab5 它会改为创建第一个用户进程。
+static int init_main(void *arg)
+{
+    cprintf("this initproc, pid = %d, name = \"%s\"\n", current->pid, get_proc_name(current));
+    cprintf("To U: \"%s\".\n", (const char *)arg);
+    cprintf("To U: \"en.., Bye, Bye. :)\"\n");
+    return 0;
+}
+
+//LAB4 function2 YOUR CODE
+/*
+【尚未实现】alloc_proc：分配一个 proc_struct（kmalloc），并把它的字段设成“刚创建”的初始状态：
+state=PROC_UNINIT、pid=-1、runs=0、kstack=0、need_resched=0、parent/mm=NULL、context 和 name 清零、
+tf=NULL、pgdir=boot_pgdir_pa（内核线程共用内核页表）、flags=0。
+本文件其余函数（get_pid、setup_kstack、find_proc 等）的使用方都在 do_fork 里，见下一个占位符。
+*/
+
+
+//LAB4 function3 YOUR CODE
+/*
+【尚未实现】proc.h / init.c / test_lab4.c 已在使用下面这些函数，这里还没有定义：
+  proc_run(proc)      切换到 proc 运行：关中断 -> 更新 current -> 把 proc->pgdir 装入 satp -> switch_to(旧 context, 新 context) -> 恢复中断。
+  copy_thread(proc, esp, tf)  在 proc 的内核栈顶放一个 trapframe（复制传入的 tf），把 proc->tf 指向它，
+                      并设置 context.ra = forkret、context.sp = proc->tf（即 forkret 将在这块栈上执行）。
+  do_fork(clone_flags, stack, tf)  创建新线程：alloc_proc -> setup_kstack -> copy_mm（lab4 为空操作）-> copy_thread ->
+                      get_pid + hash_proc + 挂入 proc_list（关中断保护）-> wakeup_proc 置为 RUNNABLE -> 返回子 pid；
+                      任何一步失败都要释放前面已分配的资源。
+  kernel_thread(fn, arg, clone_flags)  造一个 trapframe：s0=fn、s1=arg、epc=kernel_thread_entry、
+                      status 设为“返回 S 态且返回后开中断”（SSTATUS_SPP|SPIE，清掉 SIE），再调用 do_fork。
+  proc_init()         建 idleproc（pid=0，kstack 用启动栈 bootstack，need_resched=1）、创建 initproc（init_main）。
+  cpu_idle()          idle 线程的死循环：need_resched 为真就 schedule()。
+另外还有 switch.S 里的 switch_to 和 sched.c 里的 schedule（各有一个 function3 占位）。
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* ------------- process/thread mechanism design&implementation -------------
 (an simplified Linux process/thread mechanism )
 introduction:
@@ -57,168 +299,3 @@ SYS_kill        : kill process                            -->do_kill-->proc->fla
 SYS_getpid      : get the process's pid
 
 */
-
-// the process set's list
-list_entry_t proc_list;
-
-#define HASH_SHIFT 10
-#define HASH_LIST_SIZE (1 << HASH_SHIFT)
-#define pid_hashfn(x) (hash32(x, HASH_SHIFT))
-
-// has list for process set based on pid
-static list_entry_t hash_list[HASH_LIST_SIZE];
-
-// idle proc
-struct proc_struct *idleproc = NULL;
-// init proc
-struct proc_struct *initproc = NULL;
-// current proc
-struct proc_struct *current = NULL;
-
-static int nr_process = 0;
-
-void kernel_thread_entry(void);
-void forkrets(struct trapframe *tf);
-void switch_to(struct context *from, struct context *to);
-
-// set_proc_name - set the name of proc
-char *
-set_proc_name(struct proc_struct *proc, const char *name)
-{
-    memset(proc->name, 0, sizeof(proc->name));
-    return memcpy(proc->name, name, PROC_NAME_LEN);
-}
-
-// get_proc_name - get the name of proc
-char *
-get_proc_name(struct proc_struct *proc)
-{
-    static char name[PROC_NAME_LEN + 1];
-    memset(name, 0, sizeof(name));
-    return memcpy(name, proc->name, PROC_NAME_LEN);
-}
-
-// get_pid - alloc a unique pid for process
-static int
-get_pid(void)
-{
-    static_assert(MAX_PID > MAX_PROCESS);
-    struct proc_struct *proc;
-    list_entry_t *list = &proc_list, *le;
-    static int next_safe = MAX_PID, last_pid = MAX_PID;
-    if (++last_pid >= MAX_PID)
-    {
-        last_pid = 1;
-        goto inside;
-    }
-    if (last_pid >= next_safe)
-    {
-    inside:
-        next_safe = MAX_PID;
-    repeat:
-        le = list;
-        while ((le = list_next(le)) != list)
-        {
-            proc = le2proc(le, list_link);
-            if (proc->pid == last_pid)
-            {
-                if (++last_pid >= next_safe)
-                {
-                    if (last_pid >= MAX_PID)
-                    {
-                        last_pid = 1;
-                    }
-                    next_safe = MAX_PID;
-                    goto repeat;
-                }
-            }
-            else if (proc->pid > last_pid && next_safe > proc->pid)
-            {
-                next_safe = proc->pid;
-            }
-        }
-    }
-    return last_pid;
-}
-
-
-// forkret -- the first kernel entry point of a new thread/process
-// NOTE: the addr of forkret is setted in copy_thread function
-//       after switch_to, the current proc will execute here.
-static void
-forkret(void)
-{
-    forkrets(current->tf);
-}
-
-// hash_proc - add proc into proc hash_list
-static void
-hash_proc(struct proc_struct *proc)
-{
-    list_add(hash_list + pid_hashfn(proc->pid), &(proc->hash_link));
-}
-
-// find_proc - find proc frome proc hash_list according to pid
-struct proc_struct *
-find_proc(int pid)
-{
-    if (0 < pid && pid < MAX_PID)
-    {
-        list_entry_t *list = hash_list + pid_hashfn(pid), *le = list;
-        while ((le = list_next(le)) != list)
-        {
-            struct proc_struct *proc = le2proc(le, hash_link);
-            if (proc->pid == pid)
-            {
-                return proc;
-            }
-        }
-    }
-    return NULL;
-}
-
-
-// setup_kstack - alloc pages with size KSTACKPAGE as process kernel stack
-static int
-setup_kstack(struct proc_struct *proc)
-{
-    struct Page *page = alloc_pages(KSTACKPAGE);
-    if (page != NULL)
-    {
-        proc->kstack = (uintptr_t)page2kva(page);
-        return 0;
-    }
-    return -E_NO_MEM;
-}
-
-// put_kstack - free the memory space of process kernel stack
-static void
-put_kstack(struct proc_struct *proc)
-{
-    free_pages(kva2page((void *)(proc->kstack)), KSTACKPAGE);
-}
-
-
-// do_exit - called by sys_exit
-//   1. call exit_mmap & put_pgdir & mm_destroy to free the almost all memory space of process
-//   2. set process' state as PROC_ZOMBIE, then call wakeup_proc(parent) to ask parent reclaim itself.
-//   3. call scheduler to switch to other process
-int do_exit(int error_code)
-{
-    panic("process exit!!.\n");
-}
-
-// init_main - the second kernel thread used to create user_main kernel threads
-static int
-init_main(void *arg)
-{
-    cprintf("this initproc, pid = %d, name = \"%s\"\n", current->pid, get_proc_name(current));
-    cprintf("To U: \"%s\".\n", (const char *)arg);
-    cprintf("To U: \"en.., Bye, Bye. :)\"\n");
-    return 0;
-}
-
-//LAB4 function2 YOUR CODE
-
-
-//LAB4 function3 YOUR CODE

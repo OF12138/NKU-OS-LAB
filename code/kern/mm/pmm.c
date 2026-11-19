@@ -13,17 +13,12 @@
 #include <riscv.h>
 #include <dtb.h>
 
-// virtual address of physical page array
-
 // pages指针保存的是第一个Page结构体所在的位置，也可以认为是Page结构体组成的数组的开头
 //数组起点应位于end之后并按页对齐
 struct Page *pages;
-
-// amount of physical memory (in pages)
 size_t npage = 0; //npage表示内核可管理的物理页号上界
 
-// The kernel image is mapped at VA=KERNBASE and PA=info.base
-uint_t va_pa_offset;
+uint_t va_pa_offset; // The kernel image is mapped at VA=KERNBASE and PA=info.base
 
 // memory starts at 0x80000000 in RISC-V
 // DRAM_BASE defined in riscv.h as 0x80000000
@@ -33,6 +28,12 @@ const size_t nbase = DRAM_BASE / PGSIZE; //nbase表示 DRAM 起始位置对应�
 pde_t *boot_pgdir_va = NULL;
 // physical address of boot-time page directory
 uintptr_t boot_pgdir_pa;
+/*
+【lab4 新增】内核页表的根（Sv39 的一级页表）。
+它不是动态分配出来的：就是 entry.S 里静态写在 .data 段中的 boot_page_table_sv39（4KiB，
+随内核镜像一起被加载到物理内存），pmm_init 里把它的虚拟地址存入 boot_pgdir_va、物理地址存入 boot_pgdir_pa。
+lab2/lab3 里对应的变量叫 satp_virtual / satp_physical，只是打印一下，没有拿来用；lab4 开始才真正往里面增删映射。
+*/
 
 // physical memory management
 const struct pmm_manager *pmm_manager;
@@ -42,6 +43,8 @@ static void check_pgdir(void);
 static void check_boot_pgdir(void);
 
 // init_pmm_manager - initialize a pmm_manager instance
+// 【lab2】选定物理内存管理器（这里是 default_pmm_manager，即 default_pmm.c 里的实现），
+// 打印名字，并调用它的 init()（初始化空闲链表 free_list 和空闲页计数 nr_free）。
 static void init_pmm_manager(void)
 {
     pmm_manager = &default_pmm_manager;
@@ -50,6 +53,8 @@ static void init_pmm_manager(void)
 }
 
 // init_memmap - call pmm->init_memmap to build Page struct for free memory
+// 【lab2】把一段连续的物理页 [base, base+n) 交给管理器，由它把这些页挂进空闲链表。
+// 只在 page_init 里调用一次，之后空闲页只通过 alloc_pages / free_pages 进出。
 static void init_memmap(struct Page *base, size_t n)
 {
     pmm_manager->init_memmap(base, n);
@@ -57,6 +62,9 @@ static void init_memmap(struct Page *base, size_t n)
 
 // alloc_pages - call pmm->alloc_pages to allocate a continuous n*PAGESIZE
 // memory
+// 【lab2】分配 n 个连续物理页，返回第一页的 Page 描述符（失败返回 NULL）。注意返回的是描述符，不是地址，
+// 要用 page2pa / page2kva 换算。管理器本身不是可重入的，所以外面套一层关中断，
+// 避免分配过程中被时钟中断打断而破坏空闲链表。lab4 里 get_pte 分配页表页、kmalloc 分配内核栈都走这里。
 struct Page *alloc_pages(size_t n)
 {
     struct Page *page = NULL;
@@ -72,6 +80,8 @@ struct Page *alloc_pages(size_t n)
 }
 
 // free_pages - call pmm->free_pages to free a continuous n*PAGESIZE memory
+// 【lab2】把 [base, base+n) 还给管理器（会尝试和相邻空闲块合并）。同样关中断保护。
+// lab4 的 page_remove_pte 在引用计数减到 0 时调用它（经 free_page 宏）。
 void free_pages(struct Page *base, size_t n)
 {
     bool intr_flag;
@@ -86,6 +96,8 @@ void free_pages(struct Page *base, size_t n)
 
 // nr_free_pages - call pmm->nr_free_pages to get the size (nr*PAGESIZE)
 // of current free memory
+// 【lab2】返回当前空闲页的总数。lab4 的 check_pgdir / check_boot_pgdir 用它做“泄漏检查”：
+// 测试前后空闲页数必须相等，否则说明有页表页或数据页没释放。
 size_t nr_free_pages(void)
 {
     size_t ret;
@@ -217,12 +229,19 @@ static void page_init(void)
     }
 }
 
+// enable_paging - 【lab4 新增，但当前框架里没有任何地方调用它】
+// 把 boot_pgdir_pa 对应的页表装进 satp：MODE=8(Sv39) 在最高 4 位（0x8000... 即 8<<60），低 44 位是根页表的物理页号。
+// 内核早在 entry.S 的 kern_entry 里就用同样的方式开启了分页（那时用的就是 boot_page_table_sv39），
+// 所以 pmm_init 里不需要再开一次；这个函数是“换一张新页表时才用得上”的备用接口（切换页表后还需 sfence.vma 刷 TLB）。
 static void enable_paging(void)
 {
     write_csr(satp, 0x8000000000000000 | (boot_pgdir_pa >> RISCV_PGSHIFT));
 }
 
 // boot_map_segment - setup&enable the paging mechanism
+// 【lab4 新增，当前框架里同样没有调用者】把虚拟地址区间 [la, la+size) 逐页映射到物理地址 [pa, pa+size)，权限为 perm。
+// 做法：对每一页调用 get_pte(pgdir, la, 1)（缺页表就现分配），然后写入 PTE = (pa>>12)<<10 | PTE_V | perm。
+// 原版 ucore 用它建立 KERNBASE→物理内存 的线性映射；本框架里这个映射由 entry.S 的 1GiB 大页一次性完成，所以用不到。
 // parameters
 //  la:   linear address of this memory need to map (after x86 segment map)
 //  size: memory size
@@ -244,6 +263,8 @@ static void boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size,
 }
 
 // boot_alloc_page - allocate one page using pmm->alloc_pages(1)
+// 【lab4 新增，当前未被调用】分配一页并返回它的内核虚拟地址（页面分配失败直接 panic）。
+// 原版 ucore 用它来分配“页目录/页表”这种启动期必须成功的页。
 // return value: the kernel virtual address of this allocated page
 // note: this function is used to get the memory for PDT(Page Directory
 // Table)&PT(Page Table)
@@ -270,6 +291,13 @@ void pmm_init(void)
     // framework.
     // Then pmm can alloc/free the physical memory.
     // Now the first_fit/best_fit/worst_fit/buddy_system pmm are available.
+    // 【lab4 的 pmm_init 执行流】
+    // 1) init_pmm_manager  选管理器、初始化空闲链表            （lab2 已有）
+    // 2) page_init         探测内存、建 pages[] 数组、把空闲页交给管理器   （lab2 已有）
+    // 3) check_alloc_page  测试管理器的分配/释放                  （lab2 已有）
+    // 4) 取得内核页表的根：boot_pgdir_va/pa                    （lab4 新增，lab3 只打印不使用）
+    // 5) check_pgdir / check_boot_pgdir  用 page_insert、get_pte 等测试页表操作（lab4 新增）
+    // 6) kmalloc_init      初始化 slub 分配器                   （lab3 新增）
     init_pmm_manager();
 
     // detect physical memory space, reserve already used memory,
@@ -279,7 +307,12 @@ void pmm_init(void)
     // use pmm->check to verify the correctness of the alloc/free function in a
     // pmm
     check_alloc_page();
+    
     // create boot_pgdir, an initial page directory(Page Directory Table, PDT)
+    // boot_page_table_sv39 是 entry.S 里放在 .data 段的那张 4KiB 根页表（见上面全局变量处的说明）。
+    // 它的符号地址是链接地址（虚拟地址 0xFFFFFFFFC02xxxxx），PADDR 减去 va_pa_offset 得到物理地址，
+    // 这个物理页号正是 kern_entry 早先写进 satp 的值，所以 CPU 当前使用的就是这张表。
+    // 这里并没有新建页表，也没有再次写 satp。
     extern char boot_page_table_sv39[];
     boot_pgdir_va = (pte_t *)boot_page_table_sv39;
     boot_pgdir_pa = PADDR(boot_pgdir_va);
@@ -302,9 +335,24 @@ void pmm_init(void)
 //  la:     要查询的虚拟地址
 //  create: 	缺少下级页表时，是否允许分配内存创建它
 // return vaule: 这个页表项在内存中的地址
+/*
+【lab4 新增】软件“走页表”：给定根页表 pgdir 和虚拟地址 la，返回 la 对应的第三级页表项（PTE）的指针，
+可以通过它读写映射；这就是硬件 MMU 查表过程的软件版本。
+Sv39 的 la 被切成 VPN[2]=PDX1(la) | VPN[1]=PDX0(la) | VPN[0]=PTX(la) | 页内偏移，三段各 9 位，每级表 512 项：
+  pgdir[PDX1]        -> 第一级项 pdep1，指向第二级表
+  第二级表[PDX0]     -> 第二级项 pdep0，指向第三级表
+  第三级表[PTX]      -> 第三级项，即最终返回的 PTE
+任何一级项无效（V=0）时：create 为 0 就返回 NULL；create 为 1 就 alloc_page 一页当下一级表，
+清零（全 0 表示 512 项都无效）、引用计数置 1、并把上一级项设为指向它。
+中间级的项只设 PTE_V（和 PTE_U），R/W/X 全为 0，硬件据此知道它是“指向下一级表”而不是叶子。
+注意：get_pte 只返回 PTE 的位置，不会写这个 PTE，也不检查它是否有效；写 PTE 是 page_insert 的事。
+一个陷阱：get_pte 假定每一级项都指向下一级表。但根页表 boot_pgdir_va[511]（内核所在的虚拟区间）是 entry.S 设置的
+1GiB 大页（叶子项，R/W/X 非 0），对内核地址调用 get_pte 会把大页的物理地址误当成二级表，读出垃圾。
+lab4 里 get_pte 只用于低地址（用户空间 / 测试用的 0、PGSIZE 等），不要拿它去查内核虚拟地址。
+*/
 pte_t *get_pte(pde_t *pgdir, uintptr_t la, bool create)
 {
-    // 查找第一级页表项
+    // 查找第一级页表项（根表里的那一项）
     pde_t *pdep1 = &pgdir[PDX1(la)];
     // 如果第一级页表项无效，说明目前还没有可用的下一级页表，需要考虑创建。
     if (!(*pdep1 & PTE_V))
@@ -325,6 +373,7 @@ pte_t *get_pte(pde_t *pgdir, uintptr_t la, bool create)
         *pdep1 = pte_create(page2ppn(page), PTE_U | PTE_V);
     }
     // 找到第二级页表中的指定页表项
+    // 第二级项：PDE_ADDR 从第一级项里取出下一级表的物理地址，KADDR 转成内核虚拟地址（CPU 的指针只能用虚拟地址），再按 PDX0 索引。
     pde_t *pdep0 = &((pte_t *)KADDR(PDE_ADDR(*pdep1)))[PDX0(la)];
     // 如果第二级页表项无效，说明目前还没有可用的下一级页表，需要考虑创建。
     if (!(*pdep0 & PTE_V))
@@ -342,10 +391,14 @@ pte_t *get_pte(pde_t *pgdir, uintptr_t la, bool create)
         *pdep0 = pte_create(page2ppn(page), PTE_U | PTE_V);
     }
     // 返回最终三级页表的页表项地址
+    // 第三级表按 PTX 索引，返回的就是 la 对应的 PTE 的地址（此时该 PTE 可能还是 0，即未映射）。
     return &((pte_t *)KADDR(PDE_ADDR(*pdep0)))[PTX(la)];
 }
 
 // get_page - get related Page struct for linear address la using PDT pgdir
+// 【lab4 新增】查询：la 当前映射到哪一个物理页，返回其 Page 描述符；未映射返回 NULL。
+// 以 create=0 调用 get_pte（只查不建），PTE 有效才用 pte2page 取出 Page。
+// 若 ptep_store 非空，顺便把 PTE 指针带出去（方便调用者直接改这个 PTE）。
 struct Page *get_page(pde_t *pgdir, uintptr_t la, pte_t **ptep_store)
 {
     pte_t *ptep = get_pte(pgdir, la, 0);
@@ -421,6 +474,9 @@ void page_remove(pde_t *pgdir, uintptr_t la)
 
 // invalidate a TLB entry, but only if the page tables being
 // edited are the ones currently in use by the processor.
+// 【lab4 新增】修改页表项后必须让 TLB 里缓存的旧翻译失效，否则 CPU 仍按旧映射访问。
+// sfence.vma 带一个地址参数时只刷新该虚拟地址的条目，比不带参数的 flush_tlb()（刷新全部）开销小。
+// pgdir 参数目前没用到（只有一个地址空间；将来要区分“是否正在使用的页表”时才有意义）。
 void tlb_invalidate(pde_t *pgdir, uintptr_t la)
 {
     // flush_tlb();
@@ -428,12 +484,21 @@ void tlb_invalidate(pde_t *pgdir, uintptr_t la)
     asm volatile("sfence.vma %0" : : "r"(la));
 }
 
+// 【lab2】调用管理器自带的 check()，验证分配/释放/合并是否正确。
 static void check_alloc_page(void)
 {
     pmm_manager->check();
     cprintf("check_alloc_page() succeeded!\n");
 }
 
+/*
+【lab4 新增】测试 get_pte / get_page / page_insert / page_remove 的正确性，并检查没有页泄漏。
+流程：先查 0 地址未映射 -> 在 0 处映射 p1，检查 ref=1、三级页表已建好 -> 在 PGSIZE 处映射 p2 带 U/W，
+检查中间级项被设上 PTE_U -> 把 PGSIZE 改映射 p1：p1 的 ref 变 2，p2 的 ref 降到 0 被释放，权限被改写 ->
+page_remove 两处，ref 归零 -> 最后手动释放两张中间页表（二、三级表是 get_pte 分配的，page_remove 不会释放它们），
+清掉 boot_pgdir_va[0]，flush_tlb，并断言空闲页数回到测试前。
+这里用的是低地址 0、PGSIZE：对应根表第 0 项，本来就是空的，所以不会碰到内核的 1GiB 大页。
+*/
 static void check_pgdir(void)
 {
     // assert(npage <= KMEMSIZE / PGSIZE);
@@ -496,6 +561,18 @@ static void check_pgdir(void)
     cprintf("check_pgdir() succeeded!\n");
 }
 
+/*
+【lab4 新增】测试“内核已有的基本映射”是否正确，并再测一次 page_insert 的实际效果：
+1) 本意是遍历 KERNBASE 到物理内存末尾的每一页，用 get_pte 查出 PTE，断言 PTE 里的物理地址正好等于 i。
+   ——但循环变量 i 是 int，ROUNDDOWN(KERNBASE, PGSIZE) 赋给它会被截断成负数，比较时又转回无符号的巨大值，
+   于是 i < npage*PGSIZE 一开始就不成立，这个循环实际一次都不会执行（按代码推断，未实测）。
+   即使执行，对内核地址调用 get_pte 也会踩到 get_pte 注释里说的大页陷阱。
+2) 断言 boot_pgdir_va[0]==0：低地址没有映射。
+3) 把同一页 p 映射到 0x100 和 0x100+PGSIZE 两个虚拟页（ref=2），经由 0x100 写入字符串，从 0x100+PGSIZE 读出，
+   证明两个虚拟地址确实指向同一物理页；再通过内核虚拟地址 page2kva(p) 把首字节清零，两个映射处读到的都是空串。
+   （这里的 0x100 是低地址，访问它靠的就是刚建立的映射，说明新页表项立即生效。）
+4) 释放 p 和两张中间页表，清 boot_pgdir_va[0]，刷新 TLB，检查没有页泄漏。
+*/
 static void check_boot_pgdir(void)
 {
     size_t nr_free_store;
@@ -539,6 +616,8 @@ static void check_boot_pgdir(void)
 }
 
 // perm2str - use string 'u,r,w,-' to present the permission
+// 【lab4 新增，当前未被调用】把权限位转成 "u r w" 形式的字符串，是 print_pgdir 的辅助函数。
+// 注意 print_pgdir 在 pmm.h 里有声明，但本文件里并没有定义（框架已把它删掉）。
 static const char *perm2str(int perm)
 {
     static char str[4];
@@ -550,6 +629,8 @@ static const char *perm2str(int perm)
 }
 
 // get_pgtable_items - In [left, right] range of PDT or PT, find a continuous
+// 【lab4 新增，当前未被调用】print_pgdir 的辅助函数：在一级表或页表的 [start, right) 范围里，
+// 跳过无效项，找出下一段“权限相同且连续有效”的项，通过 left_store/right_store 返回这一段的起止下标，返回值是这段的权限。
 // linear addr space
 //                  - (left_store*X_SIZE~right_store*X_SIZE) for PDT or PT
 //                  - X_SIZE=PTSIZE=4M, if PDT; X_SIZE=PGSIZE=4K, if PT

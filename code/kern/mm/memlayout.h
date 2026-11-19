@@ -71,22 +71,9 @@ struct Page
     uintptr_t pra_vaddr;            // used for pra (page replace algorithm)
 
 // Page 里嵌了一个 page_link，空闲页通过它串成链表。free_area_t 里的 free_list 是链表头（哨兵），nr_free 是空闲页总数：
-
-
 // free_list ⇄ [Page A].page_link ⇄ [Page B].page_link ⇄ ... ⇄ f
-
 // 链表里串起来的是 page_link，不是 Page 本身。这时从链表节点反推出整个 Page，就用 le2page：
 
-
-// #define le2page(le, member)  to_struct((le), struct Page, member)
-// // to_struct = (type*)((char*)ptr - offsetof(type, member))
-// 意思是：节点地址减去 page_link 在 Page 内的偏移，就得到所在 Page 的首地址。典型用法：
-
-
-// list_entry_t *le = list_next(&free_list);
-// struct Page *p = le2page(le, page_link);
-
-//这里就用到了 le2page 宏。它的作用是，给定 list_entry* le，以及 member = page_link，利用 to_struct 宏，从 le 的地址向前偏移，得到 Page 结构体的首地址，最终返回 Page*。这种技巧本质上是 “container_of” 的用法（Linux 内核里大量使用），即从结构体中的某个成员指针，反推出整个结构体指针。
 };
 
 /* Flags describing the status of a page frame */
@@ -102,6 +89,14 @@ struct Page
 
 // convert list entry to page
 //就是 contianer_of 的写法， le2slab, le2cache 也是同一个 to_struct
+/*
+// #define le2page(le, member)  to_struct((le), struct Page, member)
+// // to_struct = (type*)((char*)ptr - offsetof(type, member))
+// 意思是：节点地址减去 page_link 在 Page 内的偏移，就得到所在 Page 的首地址。典型用法：
+// list_entry_t *le = list_next(&free_list);
+// struct Page *p = le2page(le, page_link);
+//这里就用到了 le2page 宏。它的作用是，给定 list_entry* le，以及 member = page_link，利用 to_struct 宏，从 le 的地址向前偏移，得到 Page 结构体的首地址，最终返回 Page*。这种技巧本质上是 “container_of” 的用法（Linux 内核里大量使用），即从结构体中的某个成员指针，反推出整个结构体指针。
+*/
 #define le2page(le, member)                 \
     to_struct((le), struct Page, member)
 

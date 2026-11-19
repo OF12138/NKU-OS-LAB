@@ -26,7 +26,6 @@ int kern_init(void)
 
     const char *message = "(THU.CST) os is loading ...";
     cprintf("%s\n\n", message);
-
     print_kerninfo();
 
     /*
@@ -52,7 +51,7 @@ int kern_init(void)
     clock_init();  // init clock interrupt
     intr_enable(); // enable irq interrupt
 
-    cpu_idle(); // run idle process
+    cpu_idle(); // run idle process 主动让出 CPU，让其他内核线程得以执行
 }
 
 static void
