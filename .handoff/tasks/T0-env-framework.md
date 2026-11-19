@@ -20,6 +20,8 @@
 - Makefile：保留 lab3 的注释和 grade 的 QEMU 路径处理（`GRADE_PATH`）；lab3 的 `make test` / `CFLAGS2` 已被框架删除，相关注释同步删掉。新增 `-Wno-error=int-conversion -Wno-error=incompatible-pointer-types`：gcc 14+ 默认把这两类当错误，框架 `kmalloc.c:92` 和评测注入的 `tools/test_lab4.c`（`void (*)(void *)` 传给 `kernel_thread`）都会编译失败；评测文件不能改，所以在编译选项里降为警告。
 - `.vscode/image-comment/` 从 lab3 分支带入（学习注释引用的截图）。
 
+- 11-20 补充：编译输出去噪。kmalloc.c:92 改为 `kva2page((void *)kva)`；Makefile 用 `KTESTDIR = $(filter %/test,$(KSRCDIR))` 只对评测注入目录加 `-Wno-incompatible-pointer-types`（Makefile 中不能出现 `kern/test` 字样，否则 inject.py 拒绝注入）；去掉 LDFLAGS 的 `--print-gc-sections`。`-Wno-error=` 两项保留。`make`、`make grade` 已无任何警告，30/30。
+
 ## 验证结果
 - WSL（gcc 15.1.0，QEMU 4.1.1）：`make` 全部编译通过，只剩 9 处链接错误，都是 T1～T3 待实现的 `page_insert`、`page_remove`、`proc_init`、`cpu_idle`。
 - 在 WSL 副本里临时补这四个函数（未提交）后：`make qemu` 输出 `memory management: best_fit_pmm_manager`、`check_alloc_page()`、`check_pgdir()`、`check_boot_pgdir()`、`kmalloc_init()`、`check_vma_struct()` 均 succeeded，10 次 `100 ticks` 后关机。
