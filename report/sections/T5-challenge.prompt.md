@@ -4,7 +4,7 @@
 
 **任务**：针对操作系统 Lab 4 指导书「扩展练习 Challenge」中的两道原理与架构分析题，结合当前仓库真实源码与 RISC-V 特权架构规范，撰写深入、严谨的 Markdown 解析报告，作为实验报告中 `## Challenge` 小节的交付内容。
 
-**操作要求**：直接依据 `code/` 目录下的真实代码与函数签名开展分析，不得虚构未在仓库中出现的符号或机制；对尚未合入的 `T3` 调度函数（`schedule` / `proc_run`）仅作基于现有接口与框架流程的机制预分析，并明确标注待核实占位，等待 `T3` 合入后校准具体源码行号。交付文本严禁使用 Emoji。
+**操作要求**：直接依据 `code/` 目录下的真实代码、函数签名与精确行号开展分析，不得虚构未在仓库中出现的符号或机制；结合已实现的 `schedule()`、`proc_run()`、`do_fork()`、`switch_to()` 与 `get_pte()` 源码展开实证剖析。交付文本严禁使用 Emoji。
 
 **输出要求**：输出格式严格符合 `report-template.md` 中 Challenge 章节要求，分小题依次给出源代码链路、硬件/数据结构对比分析、场景推演以及客观工程评价。
 
@@ -98,6 +98,60 @@ pte_t *get_pte(pde_t *pgdir, uintptr_t la, bool create)
 extern list_entry_t proc_list;
 extern struct proc_struct *idleproc, *initproc, *current;
 void proc_run(struct proc_struct *proc);
+```
+
+```c
+// code/kern/schedule/sched.c & code/kern/process/proc.c
+void schedule(void)
+{
+    bool intr_flag;
+    list_entry_t *le, *last;
+    struct proc_struct *next = NULL;
+    local_intr_save(intr_flag);
+    {
+        current->need_resched = 0;
+        last = (current == idleproc) ? &proc_list : &(current->list_link);
+        le = last;
+        do
+        {
+            if ((le = list_next(le)) != &proc_list)
+            {
+                next = le2proc(le, list_link);
+                if (next->state == PROC_RUNNABLE)
+                {
+                    break;
+                }
+            }
+        } while (le != last);
+        if (next == NULL || next->state != PROC_RUNNABLE)
+        {
+            next = idleproc;
+        }
+        next->runs++;
+        if (next != current)
+        {
+            proc_run(next);
+        }
+    }
+    local_intr_restore(intr_flag);
+}
+
+void proc_run(struct proc_struct *proc)
+{
+    if (proc != current)
+    {
+        bool intr_flag;
+        struct proc_struct *prev = current, *next = proc;
+        local_intr_save(intr_flag);
+        {
+            current = next;
+            write_csr(satp, ((uintptr_t)SATP_MODE_SV39 << 60) | (next->pgdir >> RISCV_PGSHIFT));
+            flush_tlb();
+            switch_to(&(prev->context), &(next->context));
+        }
+        local_intr_restore(intr_flag);
+    }
+}
 ```
 
 [GUARANTEE]
