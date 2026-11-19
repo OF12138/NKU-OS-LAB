@@ -21,9 +21,10 @@ int kern_init(void)
 {
     extern char edata[], end[];
     memset(edata, 0, end - edata); // clear .bss 
-    dtb_init(); //在kern_entry部分的初始化结束，我们正式进入到kern_init之后，会执行dtb_init函数来读取设备树结构中储存的相关信息
-    cons_init(); // init the console
 
+    dtb_init(); //在kern_entry部分的初始化结束，我们正式进入到kern_init之后，会执行dtb_init函数来读取设备树结构中储存的相关信息
+
+    cons_init(); // init the console
     const char *message = "(THU.CST) os is loading ...";
     cprintf("%s\n\n", message);
     print_kerninfo();
@@ -38,19 +39,13 @@ int kern_init(void)
     - > 现在开始不断地触发时钟中断
     */
 
-    // grade_backtrace();
-
     pmm_init(); // init physical memory management
-
     pic_init(); // init interrupt controller
     idt_init(); // init interrupt descriptor table
-
     vmm_init();  // init virtual memory management
     proc_init(); // init process table
-
     clock_init();  // init clock interrupt
     intr_enable(); // enable irq interrupt
-
     cpu_idle(); // run idle process 主动让出 CPU，让其他内核线程得以执行
 }
 

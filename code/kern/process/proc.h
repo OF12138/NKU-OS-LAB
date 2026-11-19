@@ -94,3 +94,11 @@ int do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf);
 int do_exit(int error_code);
 
 #endif /* !__KERN_PROCESS_PROC_H__ */
+
+
+
+// ![image](../../../.vscode/image-comment/Screenshot-2026-11-19-171027.png)
+
+
+// ![image](../../../.vscode/image-comment/Screenshot-2026-11-19-171149.png)
+

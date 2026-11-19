@@ -391,10 +391,9 @@ void proc_init(void)
 //LAB4 function3 2411264
 /*
 proc_run - 切换到 proc 运行：关中断 -> 更新 current -> 把 proc->pgdir 装入 satp -> switch_to(旧 context, 新 context) -> 恢复中断。
-（switch.S 里的 switch_to 和 sched.c 里的 schedule 也属于功能模块三，各在自己的 function3 标记下。）
 - proc 就是 current 时什么也不做。
 - satp 的写法参照 pmm.c 的 enable_paging()：MODE 字段在最高 4 位，SATP_MODE_SV39 的值是 8，要左移 60 位；
-  低 44 位是根页表的物理页号 pgdir >> 12。riscv.h 里的 lsatp() 是 Sv32 遗留（MODE 在第 31 位、参数只有 32 位），不能用。
+  低 44 位是根页表的物理页号 pgdir >> 12。
   本实验所有线程的 pgdir 都是 boot_pgdir_pa，写 satp 实际不会改变映射；仍按“换页表后 sfence.vma”的规范刷新 TLB，
   lab5 各进程有自己的页表时这一步是必需的。
 - 关中断保证“current 已改、页表已换、寄存器还没换”的中间状态不会被时钟中断打断。
@@ -406,14 +405,20 @@ void proc_run(struct proc_struct *proc)
     if (proc != current)
     {
         bool intr_flag;
-        struct proc_struct *prev = current, *next = proc;
+        struct proc_struct *prev = current, *next = proc; // 先把旧线程记在局部变量里，因为下一行就要改 current
         local_intr_save(intr_flag);
         {
-            current = next;
+            current = next; // 从此刻起，内核认为运行的是 next（forkret 里的 current->tf 依赖这一点）
+            // 换页表：MODE=Sv39 在最高 4 位，低 44 位是 next 根页表的物理页号。lab4 所有线程共用内核页表，这里不会改变映射
             write_csr(satp, ((uintptr_t)SATP_MODE_SV39 << 60) | (next->pgdir >> RISCV_PGSHIFT));
-            flush_tlb();
+            flush_tlb(); // 换页表后清空 TLB，避免残留旧页表的翻译
+            // 保存 prev 的寄存器到 prev->context，恢复 next 的。这一句“返回”之后，CPU 已经在运行 next 的代码了：
+            //   next 是新线程 -> 从 forkret 开始；
+            //   next 是以前被切走的线程 -> 回到它自己当年调用 switch_to 的位置，即下面的 local_intr_restore。
+            // 而 prev 要等到将来被重新调度时，才会从这一句之后继续执行。
             switch_to(&(prev->context), &(next->context));
         }
+        // 这里恢复的是“当前正在运行的这个线程”自己栈上保存的 intr_flag，不一定是上面 local_intr_save 存的那个
         local_intr_restore(intr_flag);
     }
 }
@@ -425,9 +430,10 @@ void cpu_idle(void)
 {
     while (1)
     {
+        // need_resched 是“请调度器重新挑线程”的请求标志。idleproc 在 proc_init 里被置 1，所以第一次循环就会调度
         if (current->need_resched)
         {
-            schedule();
+            schedule(); // 没有其他可运行线程时，schedule 会重新选回 idleproc，回来后继续空转
         }
     }
 }
