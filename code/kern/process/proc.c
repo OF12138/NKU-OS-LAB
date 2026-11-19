@@ -255,6 +255,7 @@ static int copy_mm(uint32_t clone_flags, struct proc_struct *proc)
 // 并设置 context.ra = forkret、context.sp = proc->tf（即 forkret 将在这块栈上执行）。
 // 首次运行链路：schedule -> proc_run -> switch_to 恢复 context，ret 跳到 forkret ->
 // forkrets(current->tf) 把 sp 设为 tf -> __trapret 按 tf 恢复全部寄存器 -> sret 到 tf->epc。
+// ![image](../../../.vscode/image-comment/Screenshot-2026-11-19-152214.png)
 static void copy_thread(struct proc_struct *proc, uintptr_t esp, struct trapframe *tf)
 {
     // 内核栈区间是 [kstack, kstack + KSTACKSIZE)，trapframe 占用最顶端的 sizeof(struct trapframe) 字节
@@ -277,33 +278,25 @@ get_pid + hash_proc + 挂入 proc_list（关中断保护）-> wakeup_proc 置为
   进程数已达 MAX_PROCESS -> -E_NO_FREE_PROC；PCB 或内核栈分配失败 -> -E_NO_MEM。
 参数 stack 是子线程的栈指针（内核线程传 0），tf 是作为模板的 trapframe。
 */
+//about clone_flags:
+// ![image](../../../.vscode/image-comment/Screenshot-2026-11-19-144815.png)
 int do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf)
 {
     int ret = -E_NO_FREE_PROC;
     struct proc_struct *proc;
-    if (nr_process >= MAX_PROCESS)
-    {
-        goto fork_out;
-    }
+    if (nr_process >= MAX_PROCESS) goto fork_out;
     ret = -E_NO_MEM;
 
     // 1. 分配并初始化 PCB，父进程是调用者
-    if ((proc = alloc_proc()) == NULL)
-    {
-        goto fork_out;
-    }
+    if ((proc = alloc_proc()) == NULL) goto fork_out;
     proc->parent = current;
 
     // 2. 分配 KSTACKPAGE 页内核栈
-    if (setup_kstack(proc) != 0)
-    {
-        goto bad_fork_cleanup_proc;
-    }
+    if (setup_kstack(proc) != 0) goto bad_fork_cleanup_proc;
+    
     // 3. 复制或共享地址空间（lab4 为空操作）
-    if (copy_mm(clone_flags, proc) != 0)
-    {
-        goto bad_fork_cleanup_kstack;
-    }
+    if (copy_mm(clone_flags, proc) != 0) goto bad_fork_cleanup_kstack;
+    
     // 4. 在内核栈上放 trapframe，设置 context
     copy_thread(proc, stack, tf);
 
@@ -348,10 +341,12 @@ int kernel_thread(int (*fn)(void *), void *arg, uint32_t clone_flags)
 {
     struct trapframe tf;
     memset(&tf, 0, sizeof(struct trapframe));
-    tf.gpr.s0 = (uintptr_t)fn;
-    tf.gpr.s1 = (uintptr_t)arg;
-    tf.status = (read_csr(sstatus) | SSTATUS_SPP | SSTATUS_SPIE) & ~SSTATUS_SIE;
-    tf.epc = (uintptr_t)kernel_thread_entry;
+    tf.gpr.s0 = (uintptr_t)fn;  //要执行的函数. 由函数指针提供, 就是这个线程要运行的函数体. 
+    tf.gpr.s1 = (uintptr_t)arg;  //上面的函数的参数. 
+    tf.status = (read_csr(sstatus) | SSTATUS_SPP | SSTATUS_SPIE) & ~SSTATUS_SIE; //status 设为“sret 后仍在 S 态（SPP）、返回后开中断（SPIE），且返回前关中断（清 SIE）”。
+    tf.epc = (uintptr_t)kernel_thread_entry; //sret 之后跳转的地址. 
+// ![image](../../../.vscode/image-comment/Screenshot-2026-11-19-150158.png)
+
     return do_fork(clone_flags, 0, &tf);
 }
 
@@ -365,35 +360,27 @@ proc_init - 初始化进程管理：
 */
 void proc_init(void)
 {
+    //1) 初始化 proc_list 和 1024 个哈希桶；
     int i;
-
     list_init(&proc_list);
-    for (i = 0; i < HASH_LIST_SIZE; i++)
-    {
-        list_init(hash_list + i);
-    }
-
-    if ((idleproc = alloc_proc()) == NULL)
-    {
-        panic("cannot alloc idleproc.\n");
-    }
-
+    for (i = 0; i < HASH_LIST_SIZE; i++) list_init(hash_list + i);
+    
+    //2) 建 idleproc：
+    if ((idleproc = alloc_proc()) == NULL) panic("cannot alloc idleproc.\n");
     idleproc->pid = 0;
     idleproc->state = PROC_RUNNABLE;
     idleproc->kstack = (uintptr_t)bootstack;
     idleproc->need_resched = 1;
     set_proc_name(idleproc, "idle");
     nr_process++;
-
     current = idleproc;
 
-    int pid = kernel_thread(init_main, "Hello world!!", 0);
-    if (pid <= 0)
-    {
-        panic("create init_main failed.\n");
-    }
+    //3) 用 kernel_thread(init_main, "Hello world!!", 0) 创建 initproc（pid=1）。
+    int pid = kernel_thread(init_main, "Hello world!!", 0); //note: 此时运行的是 idleproc 所以内核栈是内核镜像里的 bootstack. tf 在 bootstack 上. 
+    //kernel_thread 里调用了 do_fork, 主要是 a. alloc_proc 分配新的PCB;  b. 开辟新的内核栈(kstack); c.copy_thread() 对内核栈进行填充, d.分配 pid. 挂入 proc_list, hash_list 等. 设置 runnable. 
+    if (pid <= 0) panic("create init_main failed.\n");
 
-    initproc = find_proc(pid);
+    initproc = find_proc(pid); //在 hash_list 里找 proc_struct. 
     set_proc_name(initproc, "init");
 
     assert(idleproc != NULL && idleproc->pid == 0);

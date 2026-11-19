@@ -297,7 +297,7 @@ void pmm_init(void)
     // 3) check_alloc_page  测试管理器的分配/释放                  （lab2 已有）
     // 4) 取得内核页表的根：boot_pgdir_va/pa                    （lab4 新增，lab3 只打印不使用）
     // 5) check_pgdir / check_boot_pgdir  用 page_insert、get_pte 等测试页表操作（lab4 新增）
-    // 6) kmalloc_init      初始化 slub 分配器                   （lab3 新增）
+    // 6) kmalloc_init      初始化 kmalloc 的 SLOB 分配器（kern/mm/kmalloc.c，lab4 框架提供）
     init_pmm_manager();
 
     // detect physical memory space, reserve already used memory,
@@ -442,6 +442,7 @@ int page_insert(pde_t *pgdir, struct Page *page, uintptr_t la, uint32_t perm)
     tlb_invalidate(pgdir, la);
     return 0;
 }
+
 // page_remove - 清除页表项，撤销映射，并刷新对应的 TLB 缓存。
 //             - 减少原物理页的引用计数，归零时释放它；如果原来没有映射，则直接返回。
 // parameter:
