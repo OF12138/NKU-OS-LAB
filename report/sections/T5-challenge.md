@@ -63,9 +63,9 @@
 
 #### 2. 本 Lab 中 `schedule` 与 `proc_run` 为什么需要开关中断保护
 
-在 `code/kern/init/init.c:49-54` 中，`proc_init()` 完成后依次调用 `clock_init()` 与 `intr_enable()` 打开时钟中断，随后进入 `cpu_idle()` 等待调度。此后每 10ms（`timebase = 1e7 / 100`，`code/kern/driver/clock.c:55`）都会产生一次异步 `IRQ_S_TIMER` 时钟中断。此外，在 `code/kern/process/proc.c:305-313` 的 `do_fork()` 中，分配 `pid`、挂入 `hash_list` 与 `proc_list` 并递增 `nr_process` 的步骤也同样使用 `local_intr_save/restore` 保护。单核环境下虽然没有多核并行竞争，但异步中断与当前内核执行流之间仍存在并发交错风险：
+在 `code/kern/init/init.c:46-49` 中，`proc_init()` 完成后依次调用 `clock_init()` 与 `intr_enable()` 打开时钟中断，随后进入 `cpu_idle()` 等待调度。此后每 10ms（`timebase = 1e7 / 100`，`code/kern/driver/clock.c:55`）都会产生一次异步 `IRQ_S_TIMER` 时钟中断。此外，在 `code/kern/process/proc.c:305-313` 的 `do_fork()` 中，分配 `pid`、挂入 `hash_list` 与 `proc_list` 并递增 `nr_process` 的步骤也同样使用 `local_intr_save/restore` 保护。单核环境下虽然没有多核并行竞争，但异步中断与当前内核执行流之间仍存在并发交错风险：
 
-1. **保护 `schedule()`（`code/kern/schedule/sched.c:26-59`）中的共享调度数据结构一致性**：
+1. **保护 `schedule()`（`code/kern/schedule/sched.c:28-61`）中的共享调度数据结构一致性**：
 
    ```c
    local_intr_save(intr_flag);
@@ -89,7 +89,7 @@
    - `schedule()` 需要修改全局共享的 `current->need_resched` 标志，并从 `current->list_link`（或 `proc_list` 表头）出发遍历全局双向链表 `proc_list`（`code/kern/process/proc.h:54`）寻找下一个 `state == PROC_RUNNABLE` 的线程。
    - 若不在遍历与决策期间关中断，一旦操作中途被异步中断打断，而中断处理路径（或后续实验引入的时间片到期置 `need_resched`、`wakeup_proc` 等）修改了 `proc_list` 节点链接或进程 `state` 字段，恢复回来后的 `schedule()` 将继续持有失效的链表指针或过时的状态判断，可能引发链表遍历越界、漏选就绪线程或选中非可运行进程。
 
-2. **保证 `proc_run()`（`code/kern/process/proc.c:404-419`）切换过程的“进程身份-地址空间-寄存器现场”三元原子性**：
+2. **保证 `proc_run()`（`code/kern/process/proc.c:403-424`）切换过程的“进程身份-地址空间-寄存器现场”三元原子性**：
 
    ```c
    local_intr_save(intr_flag);
@@ -103,9 +103,9 @@
    ```
 
    `proc_run(struct proc_struct *proc)` 需要在关中断临界区内依次完成三个不可分割的软硬件状态迁移：
-   - **更新内核运行身份**：将全局指针 `current` 指向目标线程 `next`（第 412 行）；
+   - **更新内核运行身份**：将全局指针 `current` 指向目标线程 `next`（第 411 行）；
    - **切换页表地址空间**：将目标线程的页目录物理基址 `next->pgdir` 按 Sv39 格式写入 `satp` 寄存器（第 413 行，`MODE=8` 左移 60 位或上物理页号）并调用 `flush_tlb()` 执行 `sfence.vma` 刷新 TLB（第 414 行）；
-   - **切换 CPU 寄存器上下文**：调用 `switch_to(&(prev->context), &(next->context))`（第 415 行，`code/kern/process/switch.S:15-48`）保存原线程的 `ra`、`sp` 与 `s0`-`s11`（`code/kern/process/proc.h:32-48`），恢复目标线程上下文。
+   - **切换 CPU 寄存器上下文**：调用 `switch_to(&(prev->context), &(next->context))`（第 419 行，`code/kern/process/switch.S:15-48`）保存原线程的 `ra`、`sp` 与 `s0`-`s11`（`code/kern/process/proc.h:32-48`），恢复目标线程上下文。
 
    如果不关中断保护这一序列，假设 CPU 刚执行完 `current = next`（或刚写入新的 `satp`），还未执行 `switch_to` 就被时钟中断打断，Trap 处理现场就会出现严重撕裂：
    - **内核控制流错乱**：中断处理函数读取的 `current` 已经是新线程 `next`，但当前 CPU 实际还在使用旧线程 `prev` 的内核栈 `sp` 与寄存器现场；若后续操作访问 `current` 或再次触发调度，会把 `prev` 的运行现场错绑定到 `next` 上。

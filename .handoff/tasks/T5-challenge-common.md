@@ -39,3 +39,4 @@
 - 11-19 `T5-qemu-run.png` 截图行距问题：初次通过 PTY 捕获 QEMU 输出并以文本模式读取时，OpenSBI `\r\n` 经 PTY `ONLCR` 转为 `\r\r\n`，被 Python 通用换行解析成双倍空行（高度 3356px）；改为二进制读取并归一化 `\r\r\n -> \n` 后重绘为 979x1736 紧凑清晰截图。
 
 ## 留言
+- [openfar 11-20] 审核通过，Challenge 两题分析准确，截图真实。直接改了两处：① 11-19 openfar 在 init.c / proc.c / sched.c 补了学习注释，Challenge 1 引用的行号随之偏移，已改为 `init.c:46-49`、`sched.c:28-61`、`proc.c:403-424`、第 411 行（`current = next`）、第 419 行（`switch_to`）；② `T5-challenge.prompt.md` 的 [RELY] 中 `schedule()` 末尾两处 if 同步为当前代码的单行写法，`check-rely.py` 全部通过。

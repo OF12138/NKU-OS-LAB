@@ -123,15 +123,10 @@ void schedule(void)
                 }
             }
         } while (le != last);
-        if (next == NULL || next->state != PROC_RUNNABLE)
-        {
-            next = idleproc;
-        }
+        if (next == NULL || next->state != PROC_RUNNABLE) next = idleproc;
+
         next->runs++;
-        if (next != current)
-        {
-            proc_run(next);
-        }
+        if (next != current) proc_run(next);
     }
     local_intr_restore(intr_flag);
 }

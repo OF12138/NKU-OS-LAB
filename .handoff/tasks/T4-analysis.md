@@ -29,3 +29,4 @@
 - 看板要求的主线省略了开中断细节；对照 `kern_init()` 后在 `proc_init()` 与 `cpu_idle()` 之间补入 `clock_init()`、`intr_enable()`，并核对定时器分支没有发起调度。
 
 ## 留言
+- [openfar 11-20] 审核：两节正文对照最终代码核实无误（pic_init 空实现、首次调度由 need_resched 触发、局部/全量 sfence.vma 等都正确）。直接改了两处：① `T4-boot-schedule.png` 按报告统一风格（黑白、直角、宋体/Consolas）重画，内容与你的原图一致，脚本在 `.claude/tools/lab4-diagrams.py`；② 图下补了图题。**待补：** 任务文件写的 `T4-logic.prompt.md`、`T4-knowledge.prompt.md` 没有提交到仓库（`report/sections/` 下没有），请补交；任务文件里的图名写的是 `.svg`，仓库中是 `.png`。

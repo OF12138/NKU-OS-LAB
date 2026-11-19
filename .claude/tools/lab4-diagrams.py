@@ -1,5 +1,5 @@
 # 绘制 lab4 报告中的图：黑白、直角矩形、传统工科风格（matplotlib）
-# 输出到 report/images/：T2-kstack-firstrun.png
+# 输出到 report/images/：T2-kstack-firstrun.png、T4-boot-schedule.png（按 lyp 原图内容重画）
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -108,4 +108,31 @@ def kstack_firstrun():
     f.save("T2-kstack-firstrun.png")
 
 
+# ---------------- T4：启动、线程创建与首次调度（lyp 原图内容，按统一风格重画） ----------------
+def boot_schedule():
+    f = Fig(12.0, 7.4)
+    def stage(x, y, w, h, title, lines):
+        f.box(x, y, w, h)
+        f.box(x, y + h - 0.5, w, 0.5, title, 10.5)
+        for i, s in enumerate(lines):
+            f.text(x + 0.2, y + h - 0.8 - i * 0.3, s, 9.5, ha="left", mono=True)
+    W, H, Y1 = 3.5, 2.0, 5.1
+    xs = [0.3, 4.25, 8.2]
+    stage(xs[0], Y1, W, H, "① 基础初始化", ["kern_init", "→ pmm_init", "→ pic_init / idt_init", "→ vmm_init"])
+    stage(xs[1], Y1, W, H, "② 创建可运行线程", ["proc_init：登记 idleproc", "kernel_thread → do_fork", "初始化内核栈和执行现场", "wakeup_proc：initproc 可运行"])
+    stage(xs[2], Y1, W, H, "③ 主动调度", ["clock_init → intr_enable", "→ cpu_idle → schedule", "由 idle 的 need_resched 触发", "选择下一个可运行线程"])
+    for i in range(2):
+        f.line([(xs[i] + W, Y1 + H / 2), (xs[i + 1], Y1 + H / 2)])
+    X4, Y4, W4, H4 = 4.0, 2.75, 4.0, 1.5
+    stage(X4, Y4, W4, H4, "④ 切换执行现场", ["proc_run：更新 current、satp", "刷新 TLB → switch_to → ret"])
+    f.line([(xs[2] + W / 2, Y1), (xs[2] + W / 2, 4.75), (X4 + W4 / 2, 4.75), (X4 + W4 / 2, Y4 + H4)])
+    Y5, H5 = 0.3, 1.5
+    stage(0.3, Y5, 5.5, H5, "新线程首次运行（initproc）", ["ra = forkret → forkrets → __trapret", "sret → kernel_thread_entry → init_main（S 态）"])
+    stage(6.2, Y5, 5.5, H5, "旧线程再次运行（已有上下文）", ["恢复原来的 ra 和 sp，", "回到先前的 proc_run，继续执行该线程"])
+    f.line([(X4 + W4 / 2, Y4), (X4 + W4 / 2, 2.3), (3.05, 2.3), (3.05, Y5 + H5)])
+    f.line([(X4 + W4 / 2, 2.3), (8.95, 2.3), (8.95, Y5 + H5)], dashed=True)
+    f.save("T4-boot-schedule.png")
+
+
 kstack_firstrun()
+boot_schedule()
