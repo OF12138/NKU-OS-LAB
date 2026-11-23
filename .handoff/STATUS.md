@@ -15,7 +15,7 @@
 | T6 | 集成：report.md、prompt.md、最终 make grade | openfar | 11-22 | 完成 | report/report.md, report/prompt.md |
 
 ## 集成状态
-- make qemu ✅   make grade ✅（11-19，30/30）   report.md 已合并 ✅   prompt.md 已合并 ✅
+- make qemu ✅   make grade ✅（11-23 收尾复测，30/30，无警告）   report.md 已合并 ✅   prompt.md 已合并 ✅
 
 ## 全组须知
 - 代码（11-19）：T1～T3 已全部完成，`make grade` 30/30；T4、T5 可以对照最终代码核实结论、截取测试截图。`make qemu` 最后出现 `process exit!!` panic 是 init_main 返回后 do_exit 的预期行为。
