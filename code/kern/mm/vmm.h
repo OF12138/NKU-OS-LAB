@@ -11,7 +11,8 @@ struct mm_struct;
 
 // the virtual continuous memory area(vma), [vm_start, vm_end), 
 // addr belong to a vma means  vma.vm_start<= addr <vma.vm_end 
-struct vma_struct {
+struct vma_struct 
+{
     struct mm_struct *vm_mm; // the set of vma using the same PDT 
     uintptr_t vm_start;      // start addr of vma      
     uintptr_t vm_end;        // end addr of vma, not include the vm_end itself
@@ -27,7 +28,8 @@ struct vma_struct {
 #define VM_EXEC                 0x00000004
 
 // the control struct for a set of vma using the same PDT
-struct mm_struct {
+struct mm_struct 
+{
     list_entry_t mmap_list;        // linear list link which sorted by start addr of vma
     struct vma_struct *mmap_cache; // current accessed vma, used for speed purpose
     pde_t *pgdir;                  // the PDT of these vma

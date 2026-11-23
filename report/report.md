@@ -9,14 +9,13 @@
 
 | 成员 | 负责的练习/模块/代码/报告 |
 |------|----------------|
-| 2411264-张远 | 环境与框架（填入 lab2/lab3 代码、统一 QEMU 4.1.1）、功能模块二（进程创建及初始化）、功能模块三（进程调度）、报告集成与最终评测 |
+| 2411264-张远 | 环境与框架、功能模块二（进程创建及初始化）、功能模块三（进程调度）、报告集成与最终评测 |
 | 2414099-李云鹏 | 功能模块一（虚拟内存页操作）、实验整体逻辑分析、对操作系统的理解 |
 | 2413074-刘昀皓 | Challenge（开关中断机制、get_pte 与分页模式）、实验目的、实验环境、测试与验证、AI 协作开发的经验 |
 
 
-# 一、实验目的
 
-结合 Lab 4（进程管理）实验指导书与核心内核模块设计，本实验的主要目的是：
+# 一、实验目的
 
 1. **理解并掌握虚拟内存管理的组织方式与多级页表维护机制**：
    - 理解在 Sv39 三级页表框架下，`page_insert()` 与 `page_remove()` 如何联动维护页表项内容、物理页引用计数（`struct Page.ref`）与 TLB 状态（`sfence.vma` / `tlb_invalidate()`）三者的一致性；
@@ -39,15 +38,11 @@
 
 ## 软件与运行环境
 
-本实验全组继续严格统一使用 **QEMU 4.1.1**（内置 OpenSBI v0.4），保证与 Lab 2/Lab 3 完全一致的 `-device loader` 内核加载行为；同时在 `code/Makefile` 中针对 gcc 14 及以上版本增加 `-Wno-error=int-conversion -Wno-error=incompatible-pointer-types` 编译选项以兼容框架与评测测试代码。
-
 | 成员 | 宿主系统 | QEMU 版本 | 交叉编译工具链 | 调试器版本 |
 | :--- | :--- | :--- | :--- | :--- |
 | 2411264-张远 | WSL2 Ubuntu 24.04 | 4.1.1（OpenSBI v0.4） | riscv64-unknown-elf-gcc 15.1.0 | riscv64-unknown-elf-gdb 16.3 |
 | 2414099-李云鹏 | WSL2 Ubuntu 22.04 | 4.1.1（OpenSBI v0.4） | SiFive riscv64-unknown-elf-gcc 10.2.0 | riscv64-unknown-elf-gdb 10.1 |
 | 2413074-刘昀皓 | WSL2 Ubuntu 24.04 | 4.1.1（OpenSBI v0.4） | riscv64-unknown-elf-gcc 15.1.0 | riscv64-unknown-elf-gdb 16.3 |
-
-全组成员本地仍通过 `export QEMU=$HOME/Environment/qemu-4.1.1/riscv64-softmmu/qemu-system-riscv64` 显式指定模拟器路径，使 `make qemu` 与 `make grade` 运行在同一 QEMU 4.1.1 版本上。
 
 ## AI 工具与底层模型
 
@@ -55,9 +50,9 @@
 
 | 成员 | 负责任务 | AI 编程工具 | 底层模型 | 备注 / 特殊配置 |
 | :--- | :--- | :--- | :--- | :--- |
-| 2411264-张远 | T0, T2, T3, T6 | Claude Code（终端 Agent） | Claude Opus 5.5 | 环境集成、进程创建与调度实现、报告集成 |
-| 2414099-李云鹏 | T1, T4 | Codex（终端 Agent） | gpt-6.1-sol | 虚拟内存页操作、整体逻辑与 OS 原理对照 |
-| 2413074-刘昀皓 | T5 | Antigravity（终端 Agent） | Gemini 4 Argon / Gemini 4 Neon / Gemini 4 Hydrogen | Challenge 剖析、公共章节撰写与测试验证 |
+| 2411264-张远 | T0, T2, T3, T6 | Claude Code | Claude Opus 5.5 | 环境集成、进程创建与调度实现、报告集成 |
+| 2414099-李云鹏 | T1, T4 | Codex | gpt-6.1-sol | 虚拟内存页操作、整体逻辑与 OS 原理对照 |
+| 2413074-刘昀皓 | T5 | Antigravity | Gemini 4 Argon / Gemini 4 Neon / Gemini 4 Hydrogen | Challenge 剖析、公共章节撰写与测试验证 |
 
 
 
@@ -76,6 +71,7 @@
 2. **准备执行现场，使线程具备调度资格**。`proc_init()` 将当前执行流登记为使用启动栈的 PID 0（`idleproc`），使 `current` 指向它并设置 `need_resched` 标志。接着通过 `kernel_thread(init_main, ...)` 构造初始 `trapframe`，将函数入口与参数分别放入 `s0` 与 `s1`，并令 `epc` 指向 `kernel_thread_entry`。`do_fork()` 分配 PCB 与内核栈，本实验中的 `copy_mm()` 暂不复制地址空间；`copy_thread()` 将 `trapframe` 放置于新栈顶，并将 `context.ra` 和 `context.sp` 分别设为 `forkret` 及其对应的栈帧地址。在完成 PID 分配、链表与哈希表登记后，通过 `wakeup_proc()` 将新线程置为 `PROC_RUNNABLE`，随后 `proc_init()` 将其登记为 `initproc`（PID 1）。
 3. **择优运行并执行上下文切换**。`proc_init()` 返回后，`kern_init()` 依次调用 `clock_init()`、`intr_enable()`，随后进入 `cpu_idle()`。首次 `schedule()` 由 `idleproc` 初始化时设置的 `need_resched` 触发，而非等待时钟中断到来。`schedule()` 清除当前线程的调度请求，从环形链表 `proc_list` 中搜寻下一个可运行线程；从 `idle` 出发时从表头哨兵之后开始检索，若未找到则回退至 `idle` 兜底。仅当选中的线程与 `current` 不同时才调用 `proc_run()`；后者在关中断的临界区内更新 `current`、写入 `satp` 寄存器、刷新 TLB，并调用 `switch_to()` 保存旧线程的 `ra`、`sp` 及 `s0`～`s11` 寄存器，同时恢复新线程对应的寄存器上下文。
 4. **新线程首次启动与旧线程恢复分流**。`switch_to()` 的 `ret` 指令跳转至恢复出的 `ra`。对于首次运行的 `initproc`，其执行流为 `forkret` $\rightarrow$ `forkrets` $\rightarrow$ `__trapret`，最终通过 `sret` 返回至 `kernel_thread_entry`，并在 S 态下执行 `init_main(arg)`。而对于经历过切换并再次被调度的老线程，其 `ra` 为此前调用 `switch_to()` 时的返回地址，因此会直接从自身的 `proc_run()` 后续代码继续执行，不再经过 `forkret` 路径。`init_main()` 返回后将进入 `do_exit()`，不过在 Lab4 中 `do_exit()` 仍为 `panic` 占位，尚未实现完整的正常退出与资源回收逻辑。
+
 
 
 # 四、实验内容与实现
@@ -237,6 +233,7 @@ void page_remove(pde_t *pgdir, uintptr_t la);
 补充测试的自查中还发现，官方 PMM 测试会保留中间页表。如果补充测试在结束时把这些原有页表一并释放，测试前后的空闲页数就无法直接比较。为此，调整了测试的清理逻辑：记录测试前的页表状态，只回收本次测试创建的页表，不改动内核实现。
 
 在使用启动桩的独立副本中，编译和 `make qemu` 验证通过，`check_pgdir()`、`check_boot_pgdir()` 及补充断言均通过；`make grade` 的 PMM 项得到 10/10 分。该副本的总分为 10/30，只能说明本模块通过，不能作为完整工程通过评测的依据。功能模块二、三完成后，完整工程（不加任何桩）的 `make grade` 中 PMM 项同样通过，总分 30/30。
+
 
 
 ## 功能模块二：进程创建及初始化
@@ -577,6 +574,7 @@ void proc_init(void);
 2. [SPECIFICATION] 逐条列出 `idleproc` 应保持为 0 的字段和 `do_fork` 的失败清理顺序，与评测的检查项一一对应。
 
 
+
 ## 功能模块三：进程调度
 
 **负责人：** 2411264-张远（openfar）
@@ -813,6 +811,7 @@ void switch_to(struct context *from, struct context *to);  // kern/process/switc
 2. [SPECIFICATION] 中写明 `schedule` 循环结束后要再检查一次 `next` 的状态，并跳过链表头哨兵节点。这两处如果漏掉，在没有可运行线程时会选中不可运行的线程，或把哨兵节点当成 `proc_struct` 访问。
 
 
+
 ## Challenge：开关中断机制与多级页表设计剖析
 
 **负责人：** 2413074-刘昀皓
@@ -994,6 +993,7 @@ void switch_to(struct context *from, struct context *to);  // kern/process/switc
   1. **拆出纯只读查找接口** `pte_t *lookup_pte(pde_t *pgdir, uintptr_t la)`：无任何副作用，可在中断上下文、锁保护只读区安全调用；
   2. **拆出专用的创建/分配接口**（如 `int alloc_pte(pde_t *pgdir, uintptr_t la, pte_t **ptep_store)`）：显式返回 `0` 或 `-E_NO_MEM`，支持在某一级 `alloc_page()` 失败时精确回滚此前刚分配的空中间页表页；
   3. **抽象多级遍历循环**：将 `PDX1` / `PDX0` 两段硬编码重构为基于页表级数 `level`（如 Sv39 为 3、Sv48 为 4）的统一迭代查找与分配逻辑，兼顾可维护性与多种分页模式的平滑扩展。
+
 
 
 # 五、测试与验证

@@ -59,7 +59,7 @@ struct proc_struct
     enum proc_state state;        // Process state
     int pid;                      // Process ID
     int runs;                     // the running times of Proces
-    uintptr_t kstack;             // Process kernel stack 难以理解的..
+    uintptr_t kstack;             // Process kernel stack 
     volatile bool need_resched;   // bool value: need to be rescheduled to release CPU?
     struct proc_struct *parent;   // the parent process
     struct mm_struct *mm;         // Process's memory management field
